@@ -81,5 +81,37 @@ namespace Clank.Visitation.Compilation
             generator.Emit(OpCodes.Br, loopStart);
             generator.MarkLabel(loopEnd);
         }
+
+        public void VisitForStmt(ForStmt forStmt)
+        {
+            var generator = _context.CurrentEnv.Generator;
+            var loopStart = generator.DefineLabel();
+            var loopEnd = generator.DefineLabel();
+            var incrementStart = generator.DefineLabel();
+
+            // Initialize
+            forStmt.Initializer?.Accept(this);
+
+            // Loop condition check
+            generator.MarkLabel(loopStart);
+            if (forStmt.Condition != null)
+            {
+                forStmt.Condition.Accept(_context.ExpressionCompiler);
+                generator.Emit(OpCodes.Brfalse, loopEnd);
+            }
+
+            // Body
+            forStmt.Body.Accept(this);
+
+            // Increment
+            generator.MarkLabel(incrementStart);
+            forStmt.Increment?.Accept(_context.ExpressionCompiler);
+
+            // Jump back to condition
+            generator.Emit(OpCodes.Br, loopStart);
+            
+            // End of loop
+            generator.MarkLabel(loopEnd);
+        }
     }
 }

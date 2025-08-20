@@ -19,6 +19,8 @@ namespace Clank.Visitation
         void VisitLambda(Lambda lambda);
         void VisitBlockExpr(BlockExpr blockExpr);
         void VisitObjectLiteral(ObjectLiteral objLiteral);
+        void VisitPropertyAccess(PropertyAccess propertyAccess);
+        void VisitCall(Call call);
     }
 }
 

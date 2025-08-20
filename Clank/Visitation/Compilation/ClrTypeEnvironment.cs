@@ -4,10 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Clank.Runtime
+namespace Clank.Visitation.Compilation
 {
-    [AttributeUsage(AttributeTargets.Method)]
-    public class ClankMethodAttribute : Attribute
+    internal class ClrTypeEnvironment
     {
     }
 }

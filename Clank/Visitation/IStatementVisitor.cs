@@ -15,5 +15,6 @@ namespace Clank.Visitation
         void VisitExprStmt(ExpressionStmt exprStmt);
         void VisitWhileStmt(WhileStmt whileStmt);
         void VisitReturnStmt(ReturnStmt returnStmt);
+        void VisitForStmt(ForStmt forStmt);
     }
 }

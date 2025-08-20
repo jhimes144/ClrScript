@@ -1,4 +1,5 @@
 ﻿using Clank.Elements.Expressions;
+using Clank.Lexer;
 using Clank.Visitation;
 using System;
 using System.Collections.Generic;
@@ -14,8 +15,11 @@ namespace Clank.Elements.Statements
 
         public Stmt Body { get; }
 
-        public WhileStmt(Expr condition, Stmt body)
+        public override Token StartLocation { get; }
+
+        public WhileStmt(Token startLoc, Expr condition, Stmt body)
         {
+            StartLocation = startLoc;
             Condition = condition;
             Body = body;
         }

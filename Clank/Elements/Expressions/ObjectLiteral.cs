@@ -12,9 +12,14 @@ namespace Clank.Elements.Expressions
     {
         public IReadOnlyList<(Token Key, Expr Value)> Properties { get; }
 
-        public ObjectLiteral(IReadOnlyList<(Token Key, Expr Value)> properties)
+        public Token OpenBrace { get; }
+
+        public override Token StartLocation => OpenBrace;
+
+        public ObjectLiteral(IReadOnlyList<(Token Key, Expr Value)> properties, Token openBrace)
         {
             Properties = properties;
+            OpenBrace = openBrace;
         }
 
         public override void Accept(IExpressionVisitor visitor)

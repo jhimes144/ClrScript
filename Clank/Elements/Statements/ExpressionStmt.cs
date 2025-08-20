@@ -1,4 +1,5 @@
 ﻿using Clank.Elements.Expressions;
+using Clank.Lexer;
 using Clank.Visitation;
 using System;
 using System.Collections.Generic;
@@ -11,6 +12,8 @@ namespace Clank.Elements.Statements
     class ExpressionStmt : Stmt
     {
         public Expr Expression { get; }
+
+        public override Token StartLocation => Expression.StartLocation;
 
         public ExpressionStmt(Expr expr)
         {

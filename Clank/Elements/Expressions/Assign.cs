@@ -14,6 +14,8 @@ namespace Clank.Elements.Expressions
 
         public Expr Expression { get; }
 
+        public override Token StartLocation => Name;
+
         public Assign(Token name, Expr expression)
         {
             Name = name;

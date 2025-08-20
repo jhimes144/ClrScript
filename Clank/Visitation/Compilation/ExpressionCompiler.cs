@@ -26,6 +26,7 @@ namespace Clank.Visitation.Compilation
         public void VisitAssign(Assign expr)
         {
             expr.Expression.Accept(this);
+            _context.CurrentEnv.VariableEmitStoreFromEvalStack(expr.Name.Value);
         }
 
         public void VisitBinary(Binary expr)
@@ -158,21 +159,26 @@ namespace Clank.Visitation.Compilation
             }
         }
 
+        public void VisitPropertyAccess(PropertyAccess memberAccess)
+        {
+            throw new NotImplementedException();
+        }
+
         public void VisitObjectLiteral(ObjectLiteral objLiteral)
         {
-            var generator = _context.CurrentEnv.Generator;
-            generator.Emit(OpCodes.Newobj, typeof(ClankObject)
-                .GetConstructor(Type.EmptyTypes));
+            //var generator = _context.CurrentEnv.Generator;
+            //generator.Emit(OpCodes.Newobj, typeof(ClankObject)
+            //    .GetConstructor(Type.EmptyTypes));
 
-            foreach (var (key, value) in objLiteral.Properties)
-            {
-                generator.Emit(OpCodes.Dup);
-                generator.Emit(OpCodes.Ldstr, key.Value);
+            //foreach (var (key, value) in objLiteral.Properties)
+            //{
+            //    generator.Emit(OpCodes.Dup);
+            //    generator.Emit(OpCodes.Ldstr, key.Value);
 
-                value.Accept(this);
-                generator.Emit(OpCodes.Callvirt,
-                    typeof(ClankObject).GetMethod(nameof(ClankObject.Set)));
-            }
+            //    value.Accept(this);
+            //    generator.Emit(OpCodes.Callvirt,
+            //        typeof(ClankObject).GetMethod(nameof(ClankObject.Set)));
+            //}
         }
 
         public void VisitUnary(Unary expr)
@@ -204,6 +210,17 @@ namespace Clank.Visitation.Compilation
         public void VisitVariable(Variable var)
         {
             _context.CurrentEnv.VariableEmitLoadIntoEvalStack(var.Name.Value);
+        }
+
+        void emitEqualEqual(Binary expr)
+        {
+            var leftType = _context.AnalysisContext.SymbolTable.TryGetSymbolFor(expr.Left).Type;
+            var rightType = _context.AnalysisContext.SymbolTable.TryGetSymbolFor(expr.Left).Type;
+        }
+
+        public void VisitCall(Call call)
+        {
+            throw new NotImplementedException();
         }
     }
 }

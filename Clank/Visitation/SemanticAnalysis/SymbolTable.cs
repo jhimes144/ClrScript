@@ -33,7 +33,7 @@ namespace Clank.Visitation.SemanticAnalysis
             CurrentScope = CurrentScope.Parent;
         }
 
-        public Symbol GetSymbolFor(Element element)
+        public Symbol TryGetSymbolFor(Element element)
         {
             if (_symbolsByElement.TryGetValue(element, out Symbol symbol))
             {
@@ -43,7 +43,17 @@ namespace Clank.Visitation.SemanticAnalysis
             return new Symbol();
         }
 
-        public void SetType(Element element, Type type)
+        public Symbol GetSymbolFor(Element element)
+        {
+            if (_symbolsByElement.TryGetValue(element, out Symbol symbol))
+            {
+                return symbol;
+            }
+
+            throw new ClankCompileException("Could not determine type where its required.", element.StartLocation);
+        }
+
+        public void SetType(Element element, ClankTypeMeta type)
         {
             if (_symbolsByElement.TryGetValue(element, out Symbol symbol))
             {
@@ -60,6 +70,6 @@ namespace Clank.Visitation.SemanticAnalysis
 
     class Symbol
     {
-        public Type Type { get; set; }
+        public ClankTypeMeta Type { get; set; }
     }
 }

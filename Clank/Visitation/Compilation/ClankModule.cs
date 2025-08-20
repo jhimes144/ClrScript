@@ -15,10 +15,10 @@ namespace Clank.Visitation.Compilation
 
         public string Name { get; }
 
-        public ClankModule(string name, TypeBuilder clankType)
+        public ClankModule(string name, CompilationContext context) : base(context)
         {
             Name = name;
-            Builder = clankType.DefineMethod(name, MethodAttributes.Private, null, null);
+            //Builder = clankType.DefineMethod(name, MethodAttributes.Private, null, null);
 
             Generator = new ILGeneratorWrapper(Builder.GetILGenerator());
         }

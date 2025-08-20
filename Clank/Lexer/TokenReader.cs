@@ -37,6 +37,13 @@ namespace Clank.Lexer
             _tokenBuffer.Append(c);
             return c;
         }
+
+        public char Skip()
+        {
+            var c = _input.Peek(Index);
+            Index++;
+            return c;
+        }
         
         public char Peek()
         {

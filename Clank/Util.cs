@@ -27,5 +27,46 @@ namespace Clank
 
             return instances;
         }
+
+        public static string ConvertStrToCamel(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return input;
+            }
+
+            var words = input.Split(new char[] { ' ', '_', '-', '.' }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (words.Length == 0)
+                return string.Empty;
+
+            if (words.Length == 1)
+            {
+                var word = words[0];
+                if (word.Length == 0) return string.Empty;
+                if (word.Length == 1) return word.ToLower();
+
+                return char.ToLower(word[0]) + word.Substring(1);
+            }
+
+            var result = new StringBuilder();
+
+            result.Append(words[0].ToLower());
+
+            for (int i = 1; i < words.Length; i++)
+            {
+                var word = words[i];
+                if (!string.IsNullOrEmpty(word))
+                {
+                    result.Append(char.ToUpper(word[0]));
+                    if (word.Length > 1)
+                    {
+                        result.Append(word.Substring(1).ToLower());
+                    }
+                }
+            }
+
+            return result.ToString();
+        }
     }
 }

@@ -15,6 +15,8 @@ namespace Clank.Elements.Expressions
 
         public Expr Body { get; }
 
+        public override Token StartLocation => Parameters.Count > 0 ? Parameters[0] : Body.StartLocation;
+
         public Lambda(IReadOnlyList<Token> parameters, Expr body)
         {
             Parameters = parameters;

@@ -64,5 +64,17 @@ namespace Clank.Visitation.SemanticAnalysis
         public void VisitWhileStmt(WhileStmt whileStmt)
         {
         }
+
+        public void VisitForStmt(ForStmt forStmt)
+        {
+            _context.SymbolTable.BeginScope();
+            
+            forStmt.Initializer?.Accept(this);
+            forStmt.Condition?.Accept(_context.ExpressionAnalyzer);
+            forStmt.Increment?.Accept(_context.ExpressionAnalyzer);
+            forStmt.Body.Accept(this);
+            
+            _context.SymbolTable.EndScope();
+        }
     }
 }

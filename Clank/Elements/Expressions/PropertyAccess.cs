@@ -8,23 +8,23 @@ using System.Threading.Tasks;
 
 namespace Clank.Elements.Expressions
 {
-    class Literal : Expr
+    class PropertyAccess : Expr
     {
-        public object Value { get; }
+        public Token Name { get; }
 
-        public Token Token { get; }
+        public Expr Expr { get; }
 
-        public override Token StartLocation => Token;
+        public override Token StartLocation => Expr.StartLocation;
 
-        public Literal(object value, Token token = null)
+        public PropertyAccess(Token name, Expr expr)
         {
-            Value = value;
-            Token = token;
+            Name = name;
+            Expr = expr;
         }
 
         public override void Accept(IExpressionVisitor visitor)
         {
-            visitor.VisitLiteral(this);
+            visitor.VisitPropertyAccess(this);
         }
     }
 }

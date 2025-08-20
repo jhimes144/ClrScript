@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Clank.Lexer;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,5 +9,6 @@ namespace Clank.Elements
 {
     abstract class Element
     {
+        public abstract Token StartLocation { get; }
     }
 }

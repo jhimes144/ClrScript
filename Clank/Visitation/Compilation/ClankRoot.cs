@@ -11,10 +11,10 @@ namespace Clank.Visitation.Compilation
 {
     class ClankRoot : ClrMethodEnvironment
     {
-        public ClankRoot(TypeBuilder clankType, Type inType, Type outType)
+        public ClankRoot(CompilationContext context) : base(context)
         {
-            Builder = clankType.DefineMethod("Main", MethodAttributes.Public | MethodAttributes.Virtual,
-                outType, new Type[] { inType });
+            Builder = context.RootClankTypeBuilder.DefineMethod("Main", MethodAttributes.Public | MethodAttributes.Virtual,
+                context.OutType, new Type[] { context.InType });
 
             Generator = new ILGeneratorWrapper(Builder.GetILGenerator());
         }

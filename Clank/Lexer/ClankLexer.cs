@@ -25,6 +25,11 @@ namespace Clank.Lexer
         {
             var tokens = new List<Token>();
 
+            if (!_reader.IsAtEnd())
+            {
+                _reader.AdvanceRemainingWhiteSpace();
+            }
+
             while (!_reader.IsAtEnd())
             {
                 var tokenFound = false;

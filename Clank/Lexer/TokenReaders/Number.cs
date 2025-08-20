@@ -11,6 +11,7 @@ namespace Clank.Lexer.TokenReaders
         public bool GetIsMatch(TokenReader reader)
         {
             var foundDigit = false;
+            var foundDot = false;
 
             while (true)
             {
@@ -21,6 +22,26 @@ namespace Clank.Lexer.TokenReaders
                     reader.Consume();
                     foundDigit = true;
                     continue;
+                }
+
+                if (c == '_' && foundDigit)
+                {
+                    reader.Skip();
+                    continue;
+                }
+
+                if (c == '.')
+                {
+                    if (!foundDot)
+                    {
+                        reader.Consume();
+                        foundDot = true;
+                        continue;
+                    }
+                    else
+                    {
+                        return false;
+                    }
                 }
 
                 if (foundDigit)

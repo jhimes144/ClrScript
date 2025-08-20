@@ -1,4 +1,5 @@
-﻿using Clank.Lexer;
+﻿using Clank.Elements;
+using Clank.Lexer;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,40 +10,42 @@ namespace Clank.Visitation.SemanticAnalysis
 {
     class OperatorResolver
     {
-        readonly Dictionary<(TokenType op, Type left, Type right), Type> _operatorTable 
-            = new Dictionary<(TokenType op, Type left, Type right), Type>();
+        readonly Dictionary<(TokenType op, ClankTypeMeta left, ClankTypeMeta right), ClankTypeMeta> _operatorTable
+            = new Dictionary<(TokenType op, ClankTypeMeta left, ClankTypeMeta right), ClankTypeMeta>();
 
         public OperatorResolver(ClankCompilationSettings settings)
         {
-            var numberType = settings.NumberPrecision == NumberPrecision.DoublePrecision 
-                ? typeof(double) : typeof(float);
-
-            var boolType = typeof(bool);
-            var stringType = typeof(string);
-            var objType = typeof(object);
+            var numberType = ClankTypeMeta.Number;
+            var boolType = ClankTypeMeta.Bool;
+            var stringType = ClankTypeMeta.String;
 
             addOperator(TokenType.Plus, numberType, numberType, numberType);
-            addOperator(TokenType.Plus, stringType, stringType, stringType);
-
             addOperator(TokenType.Divide, numberType, numberType, numberType);
+            addOperator(TokenType.Minus, numberType, numberType, numberType);
+            addOperator(TokenType.Multiply, numberType, numberType, numberType);
+
+            addOperator(TokenType.GreaterThan, numberType, numberType, boolType);
+            addOperator(TokenType.LessThan, numberType, numberType, boolType);
+            addOperator(TokenType.GreaterThanOrEqual, numberType, numberType, boolType);
+            addOperator(TokenType.LessThanOrEqual, numberType, numberType, boolType);
         }
 
-        void addOperator(TokenType op, Type left, Type right, Type result)
+        void addOperator(TokenType op, ClankTypeMeta left, ClankTypeMeta right, ClankTypeMeta result)
         {
             _operatorTable[(op, left, right)] = result;
         }
 
-        public Type ResolveOperator(TokenType op, Type leftType, Type rightType)
+        public ClankTypeMeta ResolveOperator(TokenType op, ClankTypeMeta leftType, ClankTypeMeta rightType)
         {
-            if (_operatorTable.TryGetValue((op, leftType, rightType), out Type result))
+            if (_operatorTable.TryGetValue((op, leftType, rightType), out ClankTypeMeta result))
             {
                 return result;
             }
 
-            if (op == TokenType.EqualEqual || op == TokenType.BangEqual)
+            if (op == TokenType.EqualEqual || op == TokenType.BangEqual
+                || op == TokenType.DoubleAmpersand || op == TokenType.DoublePipe)
             {
-                // we use object.Equals when compiling. We do not enforce the same restrictions as c#
-                return typeof(bool);
+                return ClankTypeMeta.Bool;
             }
 
             return null;

@@ -12,6 +12,8 @@ namespace Clank.Elements.Expressions
     {
         public Token Name { get; }
 
+        public override Token StartLocation => Name;
+
         public Variable(Token name)
         {
             Name = name;

@@ -1,4 +1,5 @@
 ﻿using Clank.Elements.Statements;
+using Clank.Lexer;
 using Clank.Visitation;
 using System;
 using System.Collections.Generic;
@@ -11,6 +12,8 @@ namespace Clank.Elements.Expressions
     class BlockExpr : Expr
     {
         public Block Block { get; }
+
+        public override Token StartLocation => Block.StartLocation;
 
         public BlockExpr(Block block)
         {

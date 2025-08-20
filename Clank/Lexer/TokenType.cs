@@ -12,6 +12,7 @@ namespace Clank.Lexer
     Const,
     Var,
     If,
+    For,
     Else,
     While,
     Return,

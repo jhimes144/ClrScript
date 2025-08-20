@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\StationScript\Clank.csproj" />
+    <ProjectReference Include="..\Clank\Clank.csproj" />
   </ItemGroup>
 
 </Project>

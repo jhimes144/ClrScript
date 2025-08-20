@@ -39,6 +39,7 @@ namespace Clank.Parser
 
         Block blockStatement()
         {
+            var openBrace = previous(); // The '{' token that was just matched
             var statements = new List<Stmt>();
 
             while (!check(TokenType.RightBrace) && !isAtEnd())
@@ -47,11 +48,16 @@ namespace Clank.Parser
             }
 
             consume(TokenType.RightBrace, "Expected '}' after scope block.");
-            return new Block(statements);
+            return new Block(statements, openBrace);
         }
 
         Stmt statement()
         {
+            if (matchAny(TokenType.For))
+            {
+                return forStatement();
+            }
+
             if (matchAny(TokenType.While))
             {
                 return whileStatement();
@@ -75,28 +81,72 @@ namespace Clank.Parser
             return expressionStatement();
         }
 
+        Stmt forStatement()
+        {
+            var startLoc = previous(); // The 'for' token that was just matched
+            consume(TokenType.LeftParen, "Expected '(' after 'for'.");
+            
+            // Initializer
+            Stmt initializer;
+            if (matchAny(TokenType.SemiColon))
+            {
+                initializer = null;
+            }
+            else if (matchAny(TokenType.Var))
+            {
+                initializer = varDeclaration();
+            }
+            else
+            {
+                initializer = expressionStatement();
+            }
+            
+            Expr condition = null;
+            if (!check(TokenType.SemiColon))
+            {
+                condition = expression();
+            }
+
+            consume(TokenType.SemiColon, "Expected ';' after loop condition.");
+            
+            Expr increment = null;
+            if (!check(TokenType.RightParen))
+            {
+                increment = expression();
+            }
+
+            consume(TokenType.RightParen, "Expected ')' after for clauses.");
+            
+            var body = statement();
+            
+            return new ForStmt(startLoc, initializer, condition, increment, body);
+        }
+
         Stmt returnStatement()
         {
+            var startLoc = previous(); // The 'return' token that was just matched
             var returnExpr = expression();
             consumeSemiColon();
-            return new ReturnStmt(returnExpr);
+            return new ReturnStmt(startLoc, returnExpr);
         }
 
         Stmt whileStatement()
         {
-            consume(TokenType.LeftParen, "Expected '(' after 'while'.");
+            var startLoc = previous(); // The 'while' token that was just matched
+            consume(TokenType.LeftParen, "Expected '('.");
             var condition = expression();
-            consume(TokenType.RightParen, "Expected ')' after 'while' expression.");
+            consume(TokenType.RightParen, "Expected ')'.");
 
             var body = statement();
-            return new WhileStmt(condition, body);
+            return new WhileStmt(startLoc, condition, body);
         }
 
         Stmt ifStatement()
         {
-            consume(TokenType.LeftParen, "Expected '(' after 'if'.");
+            var startLoc = previous();
+            consume(TokenType.LeftParen, "Expected '('.");
             var condition = expression();
-            consume(TokenType.RightParen, "Expected ')' after 'if' expression.");
+            consume(TokenType.RightParen, "Expected ')'.");
 
             var thenBranch = statement();
             Stmt elseBranch = null;
@@ -113,7 +163,7 @@ namespace Clank.Parser
                 }
             }
             
-            return new IfStmt(condition, thenBranch, elseBranch);
+            return new IfStmt(startLoc, condition, thenBranch, elseBranch);
         }
 
         Stmt declaration()
@@ -136,6 +186,7 @@ namespace Clank.Parser
 
         Stmt varDeclaration()
         {
+            var startLoc = previous(); // The 'var' token that was just matched
             var name = consume(TokenType.Identifier, "Expected variable name.");
 
             Expr init = null;
@@ -146,7 +197,7 @@ namespace Clank.Parser
             }
 
             consumeSemiColon();
-            return new VarStmt(name, init);
+            return new VarStmt(startLoc, name, init);
         }
 
         Stmt expressionStatement()
@@ -363,24 +414,59 @@ namespace Clank.Parser
                 return new Unary(op, right);
             }
 
-            return primary();
+            return postFix();
+        }
+
+        Expr postFix()
+        {
+            var expr = primary();
+
+            while (true)
+            {
+                if (matchAny(TokenType.Dot))
+                {
+                    var name = consume(TokenType.Identifier, "Expected property name after '.'.");
+                    expr = new PropertyAccess(name, expr);
+                }
+                else if (matchAny(TokenType.LeftParen))
+                {
+                    var arguments = new List<Expr>();
+
+                    if (!check(TokenType.RightParen))
+                    {
+                        do
+                        {
+                            arguments.Add(expression());
+                        } while (matchAny(TokenType.Comma));
+                    }
+
+                    var paren = consume(TokenType.RightParen, "Expected ')' after arguments.");
+                    expr = new Call(paren, expr, arguments);
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return expr;
         }
 
         Expr primary()
         {
             if (matchAny(TokenType.True))
             {
-                return new Literal(true);
+                return new Literal(true, previous());
             }
 
             if (matchAny(TokenType.False))
             {
-                return new Literal(false);
+                return new Literal(false, previous());
             }
 
             if (matchAny(TokenType.Null))
             {
-                return new Literal(null);
+                return new Literal(null, previous());
             }
 
             if (matchAny(TokenType.Number))
@@ -389,18 +475,18 @@ namespace Clank.Parser
 
                 if (_settings.NumberPrecision == NumberPrecision.SinglePrecision)
                 {
-                    return new Literal(float.Parse(token.Value));
+                    return new Literal(float.Parse(token.Value), token);
                 }
                 else if (_settings.NumberPrecision == NumberPrecision.DoublePrecision)
                 {
-                    return new Literal(double.Parse(token.Value));
+                    return new Literal(double.Parse(token.Value), token);
                 }
             }
 
             if (matchAny(TokenType.String))
             {
                 var token = previous();
-                return new Literal(token.Value.Trim('"'));
+                return new Literal(token.Value.Trim('"'), token);
             }
 
             if (matchAny(TokenType.LeftParen))
@@ -426,6 +512,7 @@ namespace Clank.Parser
 
         Expr objectLiteral()
         {
+            var openBrace = previous(); // The '{' token that was just matched
             var properties = new List<(Token Key, Expr Value)>();
 
             if (!check(TokenType.RightBrace))
@@ -442,7 +529,7 @@ namespace Clank.Parser
             }
 
             consume(TokenType.RightBrace, "Expected '}' after object literal.");
-            return new ObjectLiteral(properties);
+            return new ObjectLiteral(properties, openBrace);
         }
 
         bool matchAny(params TokenType[] tokenTypes)

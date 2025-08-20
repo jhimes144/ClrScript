@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Clank.Interop;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,12 +17,15 @@ namespace Clank.Visitation.SemanticAnalysis
 
         public OperatorResolver OperatorResolver { get; }
 
+        public ExternalTypeAnalyzer ExternalTypes { get; }
+
         public List<ClankCompileException> Errors { get; }
 
-        public AnalysisContext(ClankCompilationSettings settings)
+        public AnalysisContext(ClankCompilationSettings settings, ExternalTypeAnalyzer externalTypes)
         {
             Errors = new List<ClankCompileException>();
             SymbolTable = new SymbolTable(this);
+            ExternalTypes = externalTypes;
             StatementAnalyzer = new SemanticStatementAnalyzer(this);
             ExpressionAnalyzer = new SemanticExpressionAnalyzer(this);
             OperatorResolver = new OperatorResolver(settings);

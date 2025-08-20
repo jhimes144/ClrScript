@@ -1,4 +1,5 @@
 ﻿using Clank.Elements.Statements;
+using Clank.Visitation.SemanticAnalysis;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,25 +13,27 @@ namespace Clank.Visitation.Compilation
     {
         public ILGeneratorWrapper Generator { get; protected set; }
         public MethodBuilder Builder { get; protected set; }
+        public AnalysisContext Analysis { get; }
 
         readonly Dictionary<string, LocalBuilder> _localsByName 
             = new Dictionary<string, LocalBuilder>();
 
+        public ClrMethodEnvironment(CompilationContext context)
+        {
+            Analysis = context.AnalysisContext;
+        }
+
         public void DeclareVariable(VarStmt stmt)
         {
-            var lVar = Generator.DeclareLocal(typeof(float));
+            var lVar = Generator.DeclareLocal(typeof(double));
             _localsByName.Add(stmt.Name.Value, lVar);
-
-//#if NET9_0
-//            lVar.SetLocalSymInfo(stmt.Name.Value);
-//#endif
         }
 
         public void VariableEmitLoadIntoEvalStack(string name)
         {
             if (!_localsByName.TryGetValue(name, out var local))
             {
-                // this shouldn't happen if the analyzer is doing its job.
+                // this shouldn't happen at this point.
                 throw new Exception($"Variable {name} never declared.");
             }
 

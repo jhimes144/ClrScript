@@ -14,6 +14,8 @@ namespace Clank.Elements.Expressions
         public Token Op { get; }
         public Expr Right { get; }
 
+        public override Token StartLocation => Left.StartLocation;
+
         public Logical(Expr left, Token op, Expr right)
         {
             Left = left;

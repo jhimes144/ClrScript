@@ -1,4 +1,4 @@
-﻿using Clank.Elements.Expressions;
+using Clank.Elements.Expressions;
 using Clank.Lexer;
 using Clank.Visitation;
 using System;
@@ -9,27 +9,27 @@ using System.Threading.Tasks;
 
 namespace Clank.Elements.Statements
 {
-    class IfStmt : Stmt
+    class ForStmt : Stmt
     {
+        public Stmt Initializer { get; }
         public Expr Condition { get; }
-
-        public Stmt ThenBranch { get; }
-
-        public Stmt ElseBranch { get; }
+        public Expr Increment { get; }
+        public Stmt Body { get; }
 
         public override Token StartLocation { get; }
 
-        public IfStmt(Token startLoc, Expr condition, Stmt thenBranch, Stmt elseBranch)
+        public ForStmt(Token startLoc, Stmt initializer, Expr condition, Expr increment, Stmt body)
         {
             StartLocation = startLoc;
+            Initializer = initializer;
             Condition = condition;
-            ThenBranch = thenBranch;
-            ElseBranch = elseBranch;
+            Increment = increment;
+            Body = body;
         }
 
         public override void Accept(IStatementVisitor visitor)
         {
-            visitor.VisitIfStmt(this);
+            visitor.VisitForStmt(this);
         }
     }
 }

@@ -10,6 +10,7 @@ using Clank.Parser;
 using Clank.Visitation.Compilation;
 using Clank.Elements.Statements;
 using Clank.Visitation.SemanticAnalysis;
+using Clank.Interop;
 
 namespace Clank
 {
@@ -51,10 +52,12 @@ namespace Clank
 
         public static ClankContext<TIn, TOut> Compile(string source, ClankCompilationSettings settings = null)
         {
-            verifyThrowAllowedInteropType(typeof(TIn));
-            verifyThrowAllowedInteropType(typeof(TOut));
-
             settings ??= new ClankCompilationSettings();
+
+            var externalTypeAnalyzer = new ExternalTypeAnalyzer(settings);
+
+            externalTypeAnalyzer.SetInType(typeof(TIn));
+            externalTypeAnalyzer.Analyze(typeof(TOut));
 
             var lexer = new ClankLexer(source);
             var tokens = lexer.Tokenize();
@@ -62,7 +65,7 @@ namespace Clank
             var parser = new ClankParser(tokens, settings); 
             var parseResult = parser.Parse();
 
-            var analyzerContext = new AnalysisContext(settings);
+            var analyzerContext = new AnalysisContext(settings, externalTypeAnalyzer);
 
             foreach (var statement in parseResult)
             {
@@ -84,7 +87,9 @@ namespace Clank
             var defaultClank = moduleBuilder.DefineType("Default", TypeAttributes.Public);
             defaultClank.AddInterfaceImplementation(typeof(IClankEntry<TIn, TOut>));
 
-            var compileContext = new CompilationContext(settings, defaultClank, typeof(TIn), typeof(TOut));
+            var compileContext = new CompilationContext(settings, analyzerContext,
+                externalTypeAnalyzer,
+                defaultClank, typeof(TIn), typeof(TOut));
 
             foreach (var statement in parseResult)
             {
@@ -99,12 +104,6 @@ namespace Clank
 
             var clankType = defaultClank.CreateType();
             return new ClankContext<TIn, TOut>(clankType);
-        }
-
-        static void verifyThrowAllowedInteropType(Type type)
-        {
-            // todo: does not handle recursive properties.
-
         }
 
         public void Dispose()
