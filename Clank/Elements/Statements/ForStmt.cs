@@ -18,6 +18,8 @@ namespace Clank.Elements.Statements
 
         public override Token StartLocation { get; }
 
+        // TODO: Continue and break statements
+
         public ForStmt(Token startLoc, Stmt initializer, Expr condition, Expr increment, Stmt body)
         {
             StartLocation = startLoc;

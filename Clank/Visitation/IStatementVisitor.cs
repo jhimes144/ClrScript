@@ -16,5 +16,7 @@ namespace Clank.Visitation
         void VisitWhileStmt(WhileStmt whileStmt);
         void VisitReturnStmt(ReturnStmt returnStmt);
         void VisitForStmt(ForStmt forStmt);
+        void VisitBlueprintStmt(BlueprintStmt blueprintStmt);
+        void VisitBlueprintPropStmt(BlueprintPropertyStmt blueprintPropStmt);
     }
 }

@@ -1,5 +1,4 @@
 ﻿using Clank.Elements.Statements;
-using Clank.Visitation.SemanticAnalysis;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,14 +12,13 @@ namespace Clank.Visitation.Compilation
     {
         public ILGeneratorWrapper Generator { get; protected set; }
         public MethodBuilder Builder { get; protected set; }
-        public AnalysisContext Analysis { get; }
 
         readonly Dictionary<string, LocalBuilder> _localsByName 
             = new Dictionary<string, LocalBuilder>();
 
         public ClrMethodEnvironment(CompilationContext context)
         {
-            Analysis = context.AnalysisContext;
+            
         }
 
         public void DeclareVariable(VarStmt stmt)

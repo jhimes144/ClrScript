@@ -113,5 +113,15 @@ namespace Clank.Visitation.Compilation
             // End of loop
             generator.MarkLabel(loopEnd);
         }
+
+        public void VisitBlueprintStmt(BlueprintStmt blueprintStmt)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void VisitBlueprintPropStmt(BlueprintPropertyStmt blueprintPropStmt)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

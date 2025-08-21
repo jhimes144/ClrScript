@@ -8,20 +8,20 @@ using System.Threading.Tasks;
 
 namespace Clank.Elements.Expressions
 {
-    class Variable : Expr
+    class MemberRootAccess : Expr
     {
         public Token Name { get; }
 
         public override Token StartLocation => Name;
 
-        public Variable(Token name)
+        public MemberRootAccess(Token name)
         {
             Name = name;
         }
 
         public override void Accept(IExpressionVisitor visitor)
         {
-            visitor.VisitVariable(this);
+            visitor.VisitMemberRootAccess(this);
         }
     }
 }

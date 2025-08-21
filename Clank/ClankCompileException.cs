@@ -1,4 +1,5 @@
-﻿using Clank.Lexer;
+﻿using Clank.Elements;
+using Clank.Lexer;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,6 +24,12 @@ namespace Clank
         {
             Col = token.Column;
             Line = token.Line;
+        }
+
+        internal ClankCompileException(string message, Element element) : base(message)
+        {
+            Col = element.StartLocation.Column;
+            Line = element.StartLocation.Line;
         }
 
         internal ClankCompileException(string message) : base(message) { }

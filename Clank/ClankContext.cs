@@ -9,8 +9,10 @@ using Clank.Lexer;
 using Clank.Parser;
 using Clank.Visitation.Compilation;
 using Clank.Elements.Statements;
-using Clank.Visitation.SemanticAnalysis;
 using Clank.Interop;
+using Clank.Visitation;
+using Clank.Visitation.SymbolCollection;
+using Clank.Visitation.Analyzer;
 
 namespace Clank
 {
@@ -59,23 +61,32 @@ namespace Clank
             externalTypeAnalyzer.SetInType(typeof(TIn));
             externalTypeAnalyzer.Analyze(typeof(TOut));
 
+            var errors = new List<ClankCompileException>();
             var lexer = new ClankLexer(source);
             var tokens = lexer.Tokenize();
 
             var parser = new ClankParser(tokens, settings); 
             var parseResult = parser.Parse();
 
-            var analyzerContext = new AnalysisContext(settings, externalTypeAnalyzer);
+            var symbolTable = new SymbolTable();
+            var symbolCollector = new SymbolCollectionVisitor(symbolTable, errors);
 
             foreach (var statement in parseResult)
             {
-                statement.Accept(analyzerContext.StatementAnalyzer);
+                statement.Accept(symbolCollector);
             }
 
-            if (analyzerContext.Errors.Count > 0)
+            var analyzer = new AnalyzerVisitor(symbolTable);
+
+            foreach (var statement in parseResult)
             {
-                analyzerContext.Errors.Reverse();
-                throw new AggregateException(analyzerContext.Errors);
+                statement.Accept(analyzer);
+            }
+
+            if (errors.Count > 0)
+            {
+                errors.Reverse();
+                throw new AggregateException(errors);
             }
 
             var contextId = Guid.NewGuid();
@@ -87,7 +98,7 @@ namespace Clank
             var defaultClank = moduleBuilder.DefineType("Default", TypeAttributes.Public);
             defaultClank.AddInterfaceImplementation(typeof(IClankEntry<TIn, TOut>));
 
-            var compileContext = new CompilationContext(settings, analyzerContext,
+            var compileContext = new CompilationContext(settings,
                 externalTypeAnalyzer,
                 defaultClank, typeof(TIn), typeof(TOut));
 

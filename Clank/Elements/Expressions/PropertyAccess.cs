@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Clank.Elements.Expressions
 {
-    class PropertyAccess : Expr
+    class MemberAccess : Expr
     {
         public Token Name { get; }
 
@@ -16,7 +16,7 @@ namespace Clank.Elements.Expressions
 
         public override Token StartLocation => Expr.StartLocation;
 
-        public PropertyAccess(Token name, Expr expr)
+        public MemberAccess(Token name, Expr expr)
         {
             Name = name;
             Expr = expr;
@@ -24,7 +24,7 @@ namespace Clank.Elements.Expressions
 
         public override void Accept(IExpressionVisitor visitor)
         {
-            visitor.VisitPropertyAccess(this);
+            visitor.VisitMemberAccess(this);
         }
     }
 }

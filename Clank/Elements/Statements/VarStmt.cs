@@ -13,12 +13,15 @@ namespace Clank.Elements.Statements
     {
         public Token Name { get; }
 
+        public VariableType VariableType { get; }
+
         public Expr Initializer { get; }
 
         public override Token StartLocation { get; }
 
-        public VarStmt(Token startLoc, Token name, Expr initializer)
+        public VarStmt(Token startLoc, VariableType variableType, Token name, Expr initializer)
         {
+            VariableType = variableType;
             StartLocation = startLoc;
             Name = name;
             Initializer = initializer;

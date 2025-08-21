@@ -17,6 +17,9 @@ namespace Clank.Interop
 
         public ExternalType InType { get; private set; }
 
+        // TODO: Need to be able to throw exception when a type has the same name from a different namespace
+        // since Clank does not support namespaces.
+
         public ExternalTypeAnalyzer(ClankCompilationSettings settings)
         {
             _numberType = settings.NumberPrecision == NumberPrecision.DoublePrecision 
@@ -34,7 +37,7 @@ namespace Clank.Interop
             InType = _externalTypesByRealTypeName[type.FullName];
         }
 
-        public ClankTypeMeta GetMetaForInTypeMemberByName(string name)
+        public ClankType GetMetaForInTypeMemberByName(string name)
         {
             return GetMetaForTypeMemberByName(InType, name);
         }
@@ -48,22 +51,22 @@ namespace Clank.Interop
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-        public ClankTypeMeta GetMetaForTypeMemberByName(ExternalType type, string name)
+        public ClankType GetMetaForTypeMemberByName(ExternalType type, string name)
         {
             var method = InType.Methods.FirstOrDefault(m => m.NameOverride == name);
 
             if (method != null)
             {
-                var returnTypeName = method.Method.ReturnType?.FullName;
+                var returnTypeName = method.Method.ReturnType?.Name;
 
                 if (returnTypeName != null)
                 {
                     var returnTypeExternal = _externalTypesByRealTypeName[returnTypeName];
-                    return new ClankTypeMeta(returnTypeName, returnTypeExternal);
+                    return new ClankType(returnTypeName, returnTypeExternal);
                 }
                 else
                 {
-                    return ClankTypeMeta.Void;
+                    return ClankType.Void;
                 }
             }
 
@@ -71,18 +74,18 @@ namespace Clank.Interop
 
             if (prop != null)
             {
-                var typeName = prop.Property.PropertyType.FullName;
+                var typeName = prop.Property.PropertyType.Name;
                 var propTypeExternal = _externalTypesByRealTypeName[typeName];
-                return new ClankTypeMeta(typeName, type);
+                return new ClankType(typeName, type);
             }
 
             var field = InType.Fields.FirstOrDefault(m => m.NameOverride == name);
 
             if (field != null)
             {
-                var typeName = field.Field.FieldType.FullName;
+                var typeName = field.Field.FieldType.Name;
                 var fieldTypeExternal = _externalTypesByRealTypeName[typeName];
-                return new ClankTypeMeta(typeName, type);
+                return new ClankType(typeName, type);
             }
 
             return null;
@@ -90,7 +93,13 @@ namespace Clank.Interop
 
         public void Analyze(Type type)
         {
-            if (_externalTypesByRealTypeName.ContainsKey(type.FullName))
+            // TODO: This will cause a stack overflow for self referencing types. i.e
+            // class Person
+            // {
+            //   Person person;
+            // }
+
+            if (_externalTypesByRealTypeName.ContainsKey(type.Name))
             {
                 return;
             }

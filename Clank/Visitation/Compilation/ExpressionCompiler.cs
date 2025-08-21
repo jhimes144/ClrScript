@@ -159,9 +159,22 @@ namespace Clank.Visitation.Compilation
             }
         }
 
-        public void VisitPropertyAccess(PropertyAccess memberAccess)
+        public void VisitMemberAccess(MemberAccess memberAccess)
         {
-            throw new NotImplementedException();
+            memberAccess.Expr.Accept(this);
+
+            // get the field/property symbol
+            //var symbol = _context.AnalysisContext.SymbolTable
+            //    .GetSymbolFor(memberAccess);
+
+            //if (symbol.MemberInfo is FieldInfo field)
+            //{
+            //    _context.CurrentEnv.Generator.Emit(OpCodes.Ldfld, field);
+            //}
+            //else
+            //{
+            //    throw new NotImplementedException();
+            //}
         }
 
         public void VisitObjectLiteral(ObjectLiteral objLiteral)
@@ -207,15 +220,15 @@ namespace Clank.Visitation.Compilation
             }
         }
 
-        public void VisitVariable(Variable var)
+        public void VisitMemberRootAccess(MemberRootAccess var)
         {
             _context.CurrentEnv.VariableEmitLoadIntoEvalStack(var.Name.Value);
         }
 
         void emitEqualEqual(Binary expr)
         {
-            var leftType = _context.AnalysisContext.SymbolTable.TryGetSymbolFor(expr.Left).Type;
-            var rightType = _context.AnalysisContext.SymbolTable.TryGetSymbolFor(expr.Left).Type;
+            //var leftType = _context.AnalysisContext.SymbolTable.TryGetSymbolFor(expr.Left).ClankType;
+            //var rightType = _context.AnalysisContext.SymbolTable.TryGetSymbolFor(expr.Left).ClankType;
         }
 
         public void VisitCall(Call call)

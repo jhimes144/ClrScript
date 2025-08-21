@@ -14,12 +14,12 @@ namespace Clank.Visitation
         void VisitGrouping(Grouping expr);
         void VisitLiteral(Literal expr);
         void VisitUnary(Unary expr);
-        void VisitVariable(Variable var);
+        void VisitMemberRootAccess(MemberRootAccess member);
         void VisitLogical(Logical logical);
         void VisitLambda(Lambda lambda);
         void VisitBlockExpr(BlockExpr blockExpr);
         void VisitObjectLiteral(ObjectLiteral objLiteral);
-        void VisitPropertyAccess(PropertyAccess propertyAccess);
+        void VisitMemberAccess(MemberAccess memberAccess);
         void VisitCall(Call call);
     }
 }

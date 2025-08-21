@@ -1,5 +1,4 @@
 ﻿using Clank.Interop;
-using Clank.Visitation.SemanticAnalysis;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,14 +28,11 @@ namespace Clank.Visitation.Compilation
 
         public ClrMethodEnvironment CurrentEnv { get; private set; }
 
-        public AnalysisContext AnalysisContext { get; private set; }
-
         public List<ClankModule> Modules { get; }
 
         public bool ReturnPrepped { get; set; }
 
         public CompilationContext(ClankCompilationSettings settings,
-            AnalysisContext analysisContext,
             ExternalTypeAnalyzer externalTypes,
             TypeBuilder rootType, Type inType, Type outType)
         {
@@ -47,7 +43,6 @@ namespace Clank.Visitation.Compilation
             Root = new ClankRoot(this);
             CurrentEnv = Root;
             ExternalTypes = externalTypes;
-            AnalysisContext = analysisContext;
             Modules = new List<ClankModule>();
 
             StatementCompiler = new StatementCompiler(this);

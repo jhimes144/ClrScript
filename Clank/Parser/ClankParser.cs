@@ -8,6 +8,7 @@ using System.Linq.Expressions;
 using System.Runtime;
 using System.Text;
 using System.Threading.Tasks;
+using Clank.Elements;
 
 namespace Clank.Parser
 {
@@ -197,7 +198,7 @@ namespace Clank.Parser
             }
 
             consumeSemiColon();
-            return new VarStmt(startLoc, name, init);
+            return new VarStmt(startLoc, VariableType.Var, name, init);
         }
 
         Stmt expressionStatement()
@@ -226,7 +227,7 @@ namespace Clank.Parser
                 var equals = previous();
                 var value = assignment();
 
-                if (expr is Variable variable)
+                if (expr is MemberRootAccess variable)
                 {
                     return new Assign(variable.Name, value);
                 }
@@ -426,7 +427,7 @@ namespace Clank.Parser
                 if (matchAny(TokenType.Dot))
                 {
                     var name = consume(TokenType.Identifier, "Expected property name after '.'.");
-                    expr = new PropertyAccess(name, expr);
+                    expr = new MemberAccess(name, expr);
                 }
                 else if (matchAny(TokenType.LeftParen))
                 {
@@ -504,7 +505,7 @@ namespace Clank.Parser
             if (matchAny(TokenType.Identifier))
             {
                 var token = previous();
-                return new Variable(token);
+                return new MemberRootAccess(token);
             }
 
             throw new ClankCompileException("Expected expression.", previous());
