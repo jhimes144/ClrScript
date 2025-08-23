@@ -9,7 +9,6 @@ namespace Clank.Interop
 {
     class ExternalTypeAnalyzer
     {
-        readonly Type _numberType;
         readonly Dictionary<string, ExternalType> _externalTypesByRealTypeName 
             = new Dictionary<string, ExternalType>();
 
@@ -17,78 +16,24 @@ namespace Clank.Interop
 
         public ExternalType InType { get; private set; }
 
+        public MethodInfo PrintStmtMethod { get; private set; }
+
         // TODO: Need to be able to throw exception when a type has the same name from a different namespace
         // since Clank does not support namespaces.
 
         public ExternalTypeAnalyzer(ClankCompilationSettings settings)
         {
-            _numberType = settings.NumberPrecision == NumberPrecision.DoublePrecision 
-                ? typeof(double) : typeof(float);
         }
 
         public void SetInType(Type type)
         {
-            if (type.IsValueType || !(type.IsInterface || type.IsClass))
-            {
-                throw new ClankCompileException($"Type {type} in an invalid IN type.");
-            }
-
             Analyze(type);
-            InType = _externalTypesByRealTypeName[type.FullName];
-        }
+            InType = _externalTypesByRealTypeName[type.Name];
 
-        public ClankType GetMetaForInTypeMemberByName(string name)
-        {
-            return GetMetaForTypeMemberByName(InType, name);
-        }
-
-        /// <summary>
-        /// This will scan type for a member with given name. If its found, will do the following:
-        /// IF its a method, return type is returned.
-        /// IF its a property, the property type is returned
-        /// IF its a field, field type is returned.
-        /// IF the member cannot be found, null is returned.
-        /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        public ClankType GetMetaForTypeMemberByName(ExternalType type, string name)
-        {
-            var method = InType.Methods.FirstOrDefault(m => m.NameOverride == name);
-
-            if (method != null)
+            if (typeof(IImplementsPrintStmt).IsAssignableFrom(InType.ClrType))
             {
-                var returnTypeName = method.Method.ReturnType?.Name;
-
-                if (returnTypeName != null)
-                {
-                    var returnTypeExternal = _externalTypesByRealTypeName[returnTypeName];
-                    return new ClankType(returnTypeName, returnTypeExternal);
-                }
-                else
-                {
-                    return ClankType.Void;
-                }
+                PrintStmtMethod = InType.ClrType.GetMethod(nameof(IImplementsPrintStmt.Print), new Type[] { typeof(object) });
             }
-
-            var prop = InType.Properties.FirstOrDefault(m => m.NameOverride == name);
-
-            if (prop != null)
-            {
-                var typeName = prop.Property.PropertyType.Name;
-                var propTypeExternal = _externalTypesByRealTypeName[typeName];
-                return new ClankType(typeName, type);
-            }
-
-            var field = InType.Fields.FirstOrDefault(m => m.NameOverride == name);
-
-            if (field != null)
-            {
-                var typeName = field.Field.FieldType.Name;
-                var fieldTypeExternal = _externalTypesByRealTypeName[typeName];
-                return new ClankType(typeName, type);
-            }
-
-            return null;
         }
 
         public void Analyze(Type type)
@@ -99,15 +44,25 @@ namespace Clank.Interop
             //   Person person;
             // }
 
+            if (type.IsPrimitive)
+            {
+                return;
+            }
+
             if (_externalTypesByRealTypeName.ContainsKey(type.Name))
             {
                 return;
             }
 
-            if (type.IsValueType && type != 
-                _numberType && type != typeof(bool))
+            //if (type.IsValueType && type != 
+            //    _numberType && type != typeof(bool))
+            //{
+            //    throw new ClankCompileException($"'{type}' is an invalid value type. It must be either a {_numberType.Name} or boolean.");
+            //}
+
+            if (!type.IsPublic)
             {
-                throw new ClankCompileException($"'{type}' is an invalid value type. It must be either a {_numberType.Name} or boolean.");
+                throw new ClankCompileException($"'{type}' is an invalid Clank type. Type must be public.");
             }
 
             if (type.IsGenericType)
@@ -144,7 +99,7 @@ namespace Clank.Interop
 
                 if (method.ReturnType != null)
                 {
-                    Analyze(method.ReturnType);
+                    Analyze(method.ReturnType); 
                 }
 
                 foreach (var parameter in method.GetParameters())
@@ -203,8 +158,8 @@ namespace Clank.Interop
                 });
             }
 
-            _externalTypesByRealTypeName[type.FullName] 
-                = new ExternalType(methodResults, propResults, fieldResults);
+            _externalTypesByRealTypeName[type.Name] 
+                = new ExternalType(type.Name, type, methodResults, propResults, fieldResults);
         }
 
         string getMemberName(string memberName, string nameOverride, bool convertToCamel)

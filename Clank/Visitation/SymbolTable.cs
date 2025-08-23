@@ -47,10 +47,6 @@ namespace Clank.Visitation
 
     abstract class Symbol
     {
-        public ClankTypeDescriptor ClankType { get; set; }
-
-        public Type ActualType { get; set; }
-
         public Element Element { get; }
 
         public Scope DeclaringScope { get; }
@@ -73,27 +69,6 @@ namespace Clank.Visitation
         public VariableSymbol(string name, Element element, Scope declaringScope) 
             : base(name, element, declaringScope)
         {
-        }
-    }
-
-    class BlueprintSymbol : Symbol
-    {
-        public BlueprintSymbol(string name, Element element, Scope declaringScope)
-            : base(name, element, declaringScope)
-        {
-        }
-    }
-
-    class BlueprintPropSymbol : Symbol
-    {
-        public string BlueprintName { get; }
-
-        public string PropTypeName { get; }
-
-        public BlueprintPropSymbol(string blueprintName, string propTypeName, string name, Element element, Scope declaringScope)
-            : base(name, element, declaringScope)
-        {
-            BlueprintName = blueprintName;
         }
     }
 }

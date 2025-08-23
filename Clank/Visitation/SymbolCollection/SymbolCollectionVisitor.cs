@@ -13,8 +13,6 @@ namespace Clank.Visitation.SymbolCollection
         readonly SymbolTable _symbolTable;
         readonly List<ClankCompileException> _errors;
 
-        string _currentBlueprintName;
-
         public SymbolCollectionVisitor(SymbolTable symbolTable, List<ClankCompileException> errors)
         {
             _errors = errors;
@@ -88,7 +86,7 @@ namespace Clank.Visitation.SymbolCollection
 
         public void VisitLambda(Lambda lambda)
         {
-            throw new NotImplementedException();
+            lambda.Body.Accept(this);
         }
 
         public void VisitLiteral(Literal expr)
@@ -131,6 +129,7 @@ namespace Clank.Visitation.SymbolCollection
             {
                 if (existingSymbol is VariableSymbol sym)
                 {
+                    member.AccessType = RootMemberAccessType.Variable;
                     return;
                 }
 
@@ -177,57 +176,9 @@ namespace Clank.Visitation.SymbolCollection
             whileStmt.Body.Accept(this);
         }
 
-        public void VisitBlueprintStmt(BlueprintStmt blueprintStmt)
+        public void VisitPrintStmt(PrintStmt printStmt)
         {
-            if (_symbolTable.CurrentScope.Kind != ScopeKind.Root)
-            {
-                _errors.Add(new ClankCompileException("Blueprints cannot be declared in inner scopes.", blueprintStmt));
-                return;
-            }
-
-            _currentBlueprintName = blueprintStmt.Name.Value;
-
-            var existingSymbol = _symbolTable.CurrentScope.FindSymbolGoingUp
-               (_currentBlueprintName, out _);
-
-            if (existingSymbol != null)
-            {
-                _errors.Add(new ClankCompileException($"Blueprint has a bad name. " +
-                    $"'{_currentBlueprintName}' has already been declared.", blueprintStmt));
-
-                return;
-            }
-
-            var symbol = new BlueprintSymbol(blueprintStmt.Name.Value, blueprintStmt, _symbolTable.CurrentScope);
-            _symbolTable.SetSymbolFor(blueprintStmt, symbol);
-
-            
-            _symbolTable.BeginScope(ScopeKind.Blueprint);
-
-            foreach (var stmt in blueprintStmt.Statements)
-            {
-                stmt.Accept(this);
-            }
-
-            _symbolTable.EndScope();
-        }
-
-        public void VisitBlueprintPropStmt(BlueprintPropertyStmt blueprintPropStmt)
-        {
-            var propName = blueprintPropStmt.Name.Value;
-            var existingSymbol = _symbolTable.CurrentScope.FindLocalSymbol(propName);
-
-            if (existingSymbol != null)
-            {
-                _errors.Add(new ClankCompileException($"'{propName}' has already been declared in blueprint '{_currentBlueprintName}'.",
-                    blueprintPropStmt));
-                return;
-            }
-
-            var symbol = new BlueprintPropSymbol(_currentBlueprintName, propName, blueprintPropStmt.Type.Value,
-                blueprintPropStmt, _symbolTable.CurrentScope);
-
-            _symbolTable.SetSymbolFor(blueprintPropStmt, symbol);
+            printStmt.Expression.Accept(this);
         }
     }
 }

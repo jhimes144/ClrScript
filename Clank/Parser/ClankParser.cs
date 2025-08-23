@@ -79,6 +79,11 @@ namespace Clank.Parser
                 return returnStatement();
             }
 
+            if (matchAny(TokenType.Print))
+            {
+                return printStatement();
+            }
+
             return expressionStatement();
         }
 
@@ -121,6 +126,13 @@ namespace Clank.Parser
             var body = statement();
             
             return new ForStmt(startLoc, initializer, condition, increment, body);
+        }
+
+        Stmt printStatement()
+        {
+            var expr = expression();
+            consumeSemiColon();
+            return new PrintStmt(expr);
         }
 
         Stmt returnStatement()
@@ -215,7 +227,7 @@ namespace Clank.Parser
 
         Expr assignment()
         {
-            if (isProbablyLambda())
+            if (isLambda())
             {
                 return lambda();
             }
@@ -238,7 +250,40 @@ namespace Clank.Parser
             return expr;
         }
 
-        bool isProbablyLambda()
+        bool tryConsumeTypePrefix(out string typePrefix)
+        {
+            var typeB = new StringBuilder();
+
+            // we do look ahead for an identifier because either way, a type prefix
+            // will always have an identifier after it.
+
+            if (matchAny(TokenType.Identifier))
+            {
+                typeB.Append(previous().Value);
+
+                if (check(TokenType.Identifier))
+                {
+                    typePrefix = typeB.ToString();
+                    return true;
+                }
+
+                // arrays
+                if (matchAny(TokenType.LeftBracket) && matchAny(TokenType.RightBracket))
+                {
+                    if (check(TokenType.Identifier))
+                    {
+                        typeB.Append("[]");
+                        typePrefix = typeB.ToString();
+                        return true;
+                    }
+                }
+            }
+
+            typePrefix = null;
+            return false;
+        }
+
+        bool isLambda()
         {
             var current = _current;
 
@@ -474,14 +519,7 @@ namespace Clank.Parser
             {
                 var token = previous();
 
-                if (_settings.NumberPrecision == NumberPrecision.SinglePrecision)
-                {
-                    return new Literal(float.Parse(token.Value), token);
-                }
-                else if (_settings.NumberPrecision == NumberPrecision.DoublePrecision)
-                {
-                    return new Literal(double.Parse(token.Value), token);
-                }
+                return new Literal(double.Parse(token.Value), token);
             }
 
             if (matchAny(TokenType.String))

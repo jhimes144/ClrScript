@@ -1,4 +1,5 @@
 ﻿using Clank.Elements.Expressions;
+using Clank.Runtime;
 using Clank.Runtime.Builtins;
 using System;
 using System.Collections.Generic;
@@ -37,42 +38,50 @@ namespace Clank.Visitation.Compilation
             switch (expr.Op.Type)
             {
                 case Lexer.TokenType.Plus:
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Add_Ovf);
+                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                        .GetMethod(nameof(Operators.Add)), null);
                     break;
                 case Lexer.TokenType.Minus:
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Sub_Ovf);
+                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                        .GetMethod(nameof(Operators.Subtract)), null);
                     break;
                 case Lexer.TokenType.Multiply:
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Mul_Ovf);
+                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                            .GetMethod(nameof(Operators.Multiply)), null);
                     break;
                 case Lexer.TokenType.Divide:
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Div);
+                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                        .GetMethod(nameof(Operators.Divide)), null);
                     break;
                 case Lexer.TokenType.EqualEqual:
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Ceq);
+                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                        .GetMethod(nameof(Operators.EqualEqual)), null);
+                    // equal equal returns bool unboxed
+                    _context.CurrentEnv.Generator.Emit(OpCodes.Box, typeof(bool));
                     break;
                 case Lexer.TokenType.BangEqual:
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Ceq);
+                    // equal equal returns bool unboxed
+                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                        .GetMethod(nameof(Operators.EqualEqual)), null);
                     _context.CurrentEnv.Generator.Emit(OpCodes.Ldc_I4_0);
                     _context.CurrentEnv.Generator.Emit(OpCodes.Ceq);
+                    _context.CurrentEnv.Generator.Emit(OpCodes.Box, typeof(bool));
                     break;
                 case Lexer.TokenType.GreaterThan:
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Cgt);
+                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                        .GetMethod(nameof(Operators.GreaterThan)), null);
                     break;
                 case Lexer.TokenType.LessThan:
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Clt);
+                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                        .GetMethod(nameof(Operators.LessThan)), null);
                     break;
                 case Lexer.TokenType.GreaterThanOrEqual:
-                    // For x >= y, we can check !(x < y)
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Clt);
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Ldc_I4_0);
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Ceq);
+                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                        .GetMethod(nameof(Operators.GreaterThanOrEqual)), null);
                     break;
                 case Lexer.TokenType.LessThanOrEqual:
-                    // For x <= y, we can check !(x > y)
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Cgt);
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Ldc_I4_0);
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Ceq);
+                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                        .GetMethod(nameof(Operators.LessThanOrEqual)), null);
                     break;
                 default:
                     throw new Exception("Incorrect token type for op on binary expression.");
@@ -96,13 +105,10 @@ namespace Clank.Visitation.Compilation
 
         public void VisitLiteral(Literal expr)
         {
-            if (expr.Value is float f)
-            {
-                _context.CurrentEnv.Generator.Emit(OpCodes.Ldc_R4, f);
-            }
-            else if (expr.Value is double d)
+            if (expr.Value is double d)
             {
                 _context.CurrentEnv.Generator.Emit(OpCodes.Ldc_R8, d);
+                _context.CurrentEnv.Generator.Emit(OpCodes.Box, typeof(double));
             }
             else if (expr.Value is string s)
             {
@@ -115,6 +121,7 @@ namespace Clank.Visitation.Compilation
             else if (expr.Value is bool b)
             {
                 _context.CurrentEnv.Generator.Emit(b ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
+                _context.CurrentEnv.Generator.Emit(OpCodes.Box, typeof(bool));
             }
             else
             {
@@ -179,19 +186,23 @@ namespace Clank.Visitation.Compilation
 
         public void VisitObjectLiteral(ObjectLiteral objLiteral)
         {
-            //var generator = _context.CurrentEnv.Generator;
-            //generator.Emit(OpCodes.Newobj, typeof(ClankObject)
-            //    .GetConstructor(Type.EmptyTypes));
+            var generator = _context.CurrentEnv.Generator;
+            generator.Emit(OpCodes.Newobj, typeof(ClankObject)
+                .GetConstructor(Type.EmptyTypes));
 
-            //foreach (var (key, value) in objLiteral.Properties)
-            //{
-            //    generator.Emit(OpCodes.Dup);
-            //    generator.Emit(OpCodes.Ldstr, key.Value);
+            foreach (var (key, value) in objLiteral.Properties)
+            {
+                generator.Emit(OpCodes.Dup);
 
-            //    value.Accept(this);
-            //    generator.Emit(OpCodes.Callvirt,
-            //        typeof(ClankObject).GetMethod(nameof(ClankObject.Set)));
-            //}
+                generator.Emit(OpCodes.Ldfld, typeof(ClankObject)
+                    .GetField("_properties", BindingFlags.NonPublic | BindingFlags.Instance));
+
+                generator.Emit(OpCodes.Ldstr, key.Value);
+
+                value.Accept(this);
+                generator.Emit(OpCodes.Callvirt, typeof(Dictionary<string, object>)
+                            .GetMethod("set_Item"));
+            }
         }
 
         public void VisitUnary(Unary expr)
@@ -201,13 +212,13 @@ namespace Clank.Visitation.Compilation
             switch (expr.Op.Type)
             {
                 case Lexer.TokenType.Minus:
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Neg);
-
+                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                        .GetMethod(nameof(Operators.UnaryMinus)), null);
                     break;
 
                 case Lexer.TokenType.Bang:
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Ldc_I4_0);
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Ceq);
+                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                        .GetMethod(nameof(Operators.UnaryBang)), null);
                     break;
 
                 case Lexer.TokenType.Plus:
@@ -222,13 +233,11 @@ namespace Clank.Visitation.Compilation
 
         public void VisitMemberRootAccess(MemberRootAccess var)
         {
-            _context.CurrentEnv.VariableEmitLoadIntoEvalStack(var.Name.Value);
-        }
-
-        void emitEqualEqual(Binary expr)
-        {
-            //var leftType = _context.AnalysisContext.SymbolTable.TryGetSymbolFor(expr.Left).ClankType;
-            //var rightType = _context.AnalysisContext.SymbolTable.TryGetSymbolFor(expr.Left).ClankType;
+            if (var.AccessType == RootMemberAccessType.Variable)
+            {
+                _context.CurrentEnv.VariableEmitLoadIntoEvalStack(var.Name.Value);
+            }
+            
         }
 
         public void VisitCall(Call call)

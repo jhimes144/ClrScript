@@ -16,6 +16,7 @@ namespace Clank.Lexer
     Else,
     While,
     Return,
+    Print,
 
     // Literals
     Number,
@@ -47,6 +48,8 @@ namespace Clank.Lexer
     RightParen,
     LeftBrace,
     RightBrace,
+    LeftBracket,
+    RightBracket,
     SemiColon,
     Colon,
     Ampersand,

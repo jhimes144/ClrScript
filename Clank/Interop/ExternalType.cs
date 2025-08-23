@@ -16,10 +16,17 @@ namespace Clank.Interop
 
         public IReadOnlyList<ExternalTypeField> Fields { get; }
 
-        public ExternalType(IReadOnlyList<ExternalTypeMethod> methods,
+        public string ClankName { get; }
+
+        public Type ClrType { get; }
+
+        public ExternalType(string clankName, Type clrType, 
+            IReadOnlyList<ExternalTypeMethod> methods,
             IReadOnlyList<ExternalTypeProperty> properties,
             IReadOnlyList<ExternalTypeField> fields)
         {
+            ClankName = clankName;
+            ClrType = clrType;
             Methods = methods;
             Properties = properties;
             Fields = fields;

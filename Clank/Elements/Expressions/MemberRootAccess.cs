@@ -8,11 +8,19 @@ using System.Threading.Tasks;
 
 namespace Clank.Elements.Expressions
 {
+    enum RootMemberAccessType
+    {
+        Variable,
+        External
+    }
+
     class MemberRootAccess : Expr
     {
         public Token Name { get; }
 
         public override Token StartLocation => Name;
+
+        public RootMemberAccessType AccessType { get; set; }
 
         public MemberRootAccess(Token name)
         {

@@ -18,11 +18,9 @@ namespace Clank.Visitation.Compilation
 
         public ExternalTypeAnalyzer ExternalTypes { get; }
 
+        public SymbolTable SymbolTable { get; }
+
         public TypeBuilder RootClankTypeBuilder { get; }
-
-        public Type InType { get; }
-
-        public Type OutType { get; }
 
         public ClankRoot Root { get; }
 
@@ -33,16 +31,16 @@ namespace Clank.Visitation.Compilation
         public bool ReturnPrepped { get; set; }
 
         public CompilationContext(ClankCompilationSettings settings,
+            SymbolTable symbolTable,
             ExternalTypeAnalyzer externalTypes,
-            TypeBuilder rootType, Type inType, Type outType)
+            TypeBuilder rootType)
         {
-            InType = inType;
-            OutType = outType;
             RootClankTypeBuilder = rootType;
 
+            SymbolTable = symbolTable;
+            ExternalTypes = externalTypes;
             Root = new ClankRoot(this);
             CurrentEnv = Root;
-            ExternalTypes = externalTypes;
             Modules = new List<ClankModule>();
 
             StatementCompiler = new StatementCompiler(this);

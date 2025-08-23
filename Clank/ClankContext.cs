@@ -12,35 +12,34 @@ using Clank.Elements.Statements;
 using Clank.Interop;
 using Clank.Visitation;
 using Clank.Visitation.SymbolCollection;
-using Clank.Visitation.Analyzer;
 
 namespace Clank
 {
-    public interface IClankEntry<TIn, TOut>
+    public interface IClankEntry<TIn>
     {
-        TOut Main(TIn input);
+        object Main(TIn input);
     }
 
-    public class ClankContext<TIn, TOut> : IDisposable
+    public class ClankContext<TIn> : IDisposable where TIn : class
     {
-        readonly IClankEntry<TIn, TOut> _entry;
+        readonly IClankEntry<TIn> _entry;
 
         internal ClankContext(Type clankType)
         {
-            _entry = (IClankEntry<TIn, TOut>)Activator.CreateInstance(clankType);
+            _entry = (IClankEntry<TIn>)Activator.CreateInstance(clankType);
         }
 
-        public TOut Run()
+        public object Run()
         {
             return _entry.Main(default);
         }
 
-        public TOut Run(TIn input)
+        public object Run(TIn input)
         {
             return _entry.Main(input);
         }
 
-        public static ClankContext<TIn, TOut> Compile(IEnumerable<string> sources, ClankCompilationSettings settings = null)
+        public static ClankContext<TIn> Compile(IEnumerable<string> sources, ClankCompilationSettings settings = null)
         {
             var allSource = new StringBuilder();
 
@@ -52,14 +51,12 @@ namespace Clank
             return Compile(allSource.ToString(), settings);
         }
 
-        public static ClankContext<TIn, TOut> Compile(string source, ClankCompilationSettings settings = null)
+        public static ClankContext<TIn> Compile(string source, ClankCompilationSettings settings = null)
         {
             settings ??= new ClankCompilationSettings();
 
             var externalTypeAnalyzer = new ExternalTypeAnalyzer(settings);
-
             externalTypeAnalyzer.SetInType(typeof(TIn));
-            externalTypeAnalyzer.Analyze(typeof(TOut));
 
             var errors = new List<ClankCompileException>();
             var lexer = new ClankLexer(source);
@@ -76,31 +73,22 @@ namespace Clank
                 statement.Accept(symbolCollector);
             }
 
-            var analyzer = new AnalyzerVisitor(symbolTable);
-
-            foreach (var statement in parseResult)
-            {
-                statement.Accept(analyzer);
-            }
-
             if (errors.Count > 0)
             {
                 errors.Reverse();
                 throw new AggregateException(errors);
             }
 
-            var contextId = Guid.NewGuid();
-            var assemblyName = new AssemblyName($"Clank-{contextId}");
+            var assemblyName = new AssemblyName($"ClankDynamic-{Guid.NewGuid()}");
             var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.RunAndCollect);
-            var moduleBuilder = assemblyBuilder.DefineDynamicModule("ClankModule");
-
-            // not to be confused with a clank module, this is different.
-            var defaultClank = moduleBuilder.DefineType("Default", TypeAttributes.Public);
-            defaultClank.AddInterfaceImplementation(typeof(IClankEntry<TIn, TOut>));
+            var clankModule = assemblyBuilder.DefineDynamicModule("ClankModule");
+            var defaultClank = clankModule.DefineType("Default", TypeAttributes.Public);
+            defaultClank.AddInterfaceImplementation(typeof(IClankEntry<TIn>));
 
             var compileContext = new CompilationContext(settings,
+                symbolTable,
                 externalTypeAnalyzer,
-                defaultClank, typeof(TIn), typeof(TOut));
+                defaultClank);
 
             foreach (var statement in parseResult)
             {
@@ -114,7 +102,7 @@ namespace Clank
             }
 
             var clankType = defaultClank.CreateType();
-            return new ClankContext<TIn, TOut>(clankType);
+            return new ClankContext<TIn>(clankType);
         }
 
         public void Dispose()

@@ -14,7 +14,7 @@ namespace Clank.Visitation.Compilation
         public ClankRoot(CompilationContext context) : base(context)
         {
             Builder = context.RootClankTypeBuilder.DefineMethod("Main", MethodAttributes.Public | MethodAttributes.Virtual,
-                context.OutType, new Type[] { context.InType });
+                typeof(object), new Type[] { context.ExternalTypes.InType.ClrType });
 
             Generator = new ILGeneratorWrapper(Builder.GetILGenerator());
         }

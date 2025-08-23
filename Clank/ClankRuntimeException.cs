@@ -4,10 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Clank.TypeBuilding
+namespace Clank
 {
-    class TypeBuilder
+    class ClankRuntimeException : Exception
     {
-
+        internal ClankRuntimeException(string message) : base(message) { }
     }
 }

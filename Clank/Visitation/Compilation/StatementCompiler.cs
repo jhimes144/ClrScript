@@ -97,6 +97,7 @@ namespace Clank.Visitation.Compilation
             if (forStmt.Condition != null)
             {
                 forStmt.Condition.Accept(_context.ExpressionCompiler);
+                generator.Emit(OpCodes.Unbox_Any, typeof(bool));
                 generator.Emit(OpCodes.Brfalse, loopEnd);
             }
 
@@ -114,14 +115,16 @@ namespace Clank.Visitation.Compilation
             generator.MarkLabel(loopEnd);
         }
 
-        public void VisitBlueprintStmt(BlueprintStmt blueprintStmt)
+        public void VisitPrintStmt(PrintStmt printStmt)
         {
-            throw new NotImplementedException();
-        }
+            var generator = _context.CurrentEnv.Generator;
 
-        public void VisitBlueprintPropStmt(BlueprintPropertyStmt blueprintPropStmt)
-        {
-            throw new NotImplementedException();
+            if (_context.ExternalTypes.PrintStmtMethod != null)
+            {
+                generator.Emit(OpCodes.Ldarg_1);
+                printStmt.Expression.Accept(_context.ExpressionCompiler);
+                generator.EmitCall(OpCodes.Callvirt, _context.ExternalTypes.PrintStmtMethod, null);
+            }
         }
     }
 }

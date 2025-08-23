@@ -11,11 +11,6 @@ namespace Clank.Runtime.Builtins
     {
         readonly List<object> _contents = new List<object>();
 
-#if NET9_0
-        readonly Lock _lock = new();
-#else
-        readonly object _lock = new object();
-#endif
 
     }
 }
