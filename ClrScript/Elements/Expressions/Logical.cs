@@ -1,0 +1,31 @@
+﻿using ClrScript.Lexer;
+using ClrScript.Visitation;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ClrScript.Elements.Expressions
+{
+    class Logical : Expr
+    {
+        public Expr Left { get; }
+        public Token Op { get; }
+        public Expr Right { get; }
+
+        public override Token StartLocation => Left.StartLocation;
+
+        public Logical(Expr left, Token op, Expr right)
+        {
+            Left = left;
+            Op = op;
+            Right = right;
+        }
+
+        public override void Accept(IExpressionVisitor visitor)
+        {
+            visitor.VisitLogical(this);
+        }
+    }
+}
