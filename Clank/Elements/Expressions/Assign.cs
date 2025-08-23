@@ -10,15 +10,15 @@ namespace Clank.Elements.Expressions
 {
     class Assign : Expr
     {
-        public Token Name { get; }
+        public Expr AssignTo { get; }
 
         public Expr Expression { get; }
 
-        public override Token StartLocation => Name;
+        public override Token StartLocation => AssignTo.StartLocation;
 
-        public Assign(Token name, Expr expression)
+        public Assign(Expr assignTo, Expr expression)
         {
-            Name = name;
+            AssignTo = assignTo;
             Expression = expression;
         }
 

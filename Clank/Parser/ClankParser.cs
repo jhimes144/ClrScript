@@ -239,12 +239,7 @@ namespace Clank.Parser
                 var equals = previous();
                 var value = assignment();
 
-                if (expr is MemberRootAccess variable)
-                {
-                    return new Assign(variable.Name, value);
-                }
-
-                throw new ClankCompileException("Invalid assignment target.", equals);
+                return new Assign(expr, value);
             }
 
             return expr;

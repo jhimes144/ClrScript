@@ -23,7 +23,7 @@ namespace Clank.Visitation.Compilation
 
         public void DeclareVariable(VarStmt stmt)
         {
-            var lVar = Generator.DeclareLocal(typeof(object));
+            var lVar = Generator.DeclareLocal(stmt.InferredType ?? typeof(object));
             _localsByName.Add(stmt.Name.Value, lVar);
         }
 

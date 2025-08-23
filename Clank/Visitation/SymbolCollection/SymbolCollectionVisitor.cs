@@ -1,5 +1,6 @@
 ﻿using Clank.Elements.Expressions;
 using Clank.Elements.Statements;
+using Clank.Runtime.Builtins;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,19 +23,33 @@ namespace Clank.Visitation.SymbolCollection
 
         public void VisitAssign(Assign expr)
         {
-            expr.Expression.Accept(this);
+            if (expr.AssignTo is MemberRootAccess rootAccess)
+            {
+                expr.Expression.Accept(this);
+                expr.InferredType = expr.InferredType;
+            }
+            else if (expr.AssignTo is MemberAccess memberAccess)
+            {
+                memberAccess.Expr.Accept(this);
+                expr.Expression.Accept(this);
+            }
         }
 
         public void VisitBinary(Binary expr)
         {
             expr.Left.Accept(this);
             expr.Right.Accept(this);
+
+            if (expr.Left.InferredType == expr.Right.InferredType)
+            {
+                expr.InferredType = expr.Left.InferredType;
+            }
         }
 
         public void VisitBlock(Block block)
         {
             _symbolTable.BeginScope(ScopeKind.Block);
-            
+
             foreach (var stmt in block.Statements)
             {
                 stmt.Accept(this);
@@ -57,7 +72,7 @@ namespace Clank.Visitation.SymbolCollection
 
         public void VisitCall(Call call)
         {
-            
+
         }
 
         public void VisitExprStmt(ExpressionStmt exprStmt)
@@ -68,6 +83,7 @@ namespace Clank.Visitation.SymbolCollection
         public void VisitForStmt(ForStmt forStmt)
         {
             forStmt.Initializer?.Accept(this);
+            forStmt.Condition?.Accept(this);
             forStmt.Body.Accept(this);
             forStmt.Increment?.Accept(this);
         }
@@ -91,23 +107,33 @@ namespace Clank.Visitation.SymbolCollection
 
         public void VisitLiteral(Literal expr)
         {
-            
+            if (expr.Value == null)
+            {
+                return;
+            }
+
+            expr.InferredType = expr.Value.GetType();
         }
 
         public void VisitLogical(Logical logical)
         {
             logical.Left.Accept(this);
             logical.Right.Accept(this);
+
+            if (logical.Left.InferredType == logical.Right.InferredType)
+            {
+                logical.InferredType = logical.Left.InferredType;
+            }
         }
 
         public void VisitObjectLiteral(ObjectLiteral objLiteral)
         {
-           
+            objLiteral.InferredType = typeof(ClankObject);
         }
 
         public void VisitMemberAccess(MemberAccess memberAccess)
         {
-
+            memberAccess.Expr.Accept(this);
         }
 
         public void VisitReturnStmt(ReturnStmt returnStmt)
@@ -118,6 +144,7 @@ namespace Clank.Visitation.SymbolCollection
         public void VisitUnary(Unary expr)
         {
             expr.Right.Accept(this);
+            expr.InferredType = expr.Right.InferredType;
         }
 
         public void VisitMemberRootAccess(MemberRootAccess member)
@@ -129,6 +156,8 @@ namespace Clank.Visitation.SymbolCollection
             {
                 if (existingSymbol is VariableSymbol sym)
                 {
+                    var stmt = (VarStmt)sym.Element;
+                    member.InferredType = stmt.InferredType;
                     member.AccessType = RootMemberAccessType.Variable;
                     return;
                 }
@@ -168,6 +197,9 @@ namespace Clank.Visitation.SymbolCollection
             };
 
             _symbolTable.SetSymbolFor(varStmt, symbol);
+
+            varStmt.Initializer.Accept(this);
+            varStmt.InferredType = varStmt.Initializer.InferredType;
         }
 
         public void VisitWhileStmt(WhileStmt whileStmt)

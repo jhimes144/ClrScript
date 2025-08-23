@@ -8,7 +8,7 @@ namespace Clank.Runtime.Builtins
 {
     public class ClankObject
     {
-        public readonly Dictionary<string, object> _properties
+        readonly Dictionary<string, object> _properties
             = new Dictionary<string, object>();
 
         public void Set(string key, object value)

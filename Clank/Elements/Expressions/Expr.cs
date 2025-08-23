@@ -9,6 +9,8 @@ namespace Clank.Elements.Expressions
 {
     abstract class Expr : Element
     {
+        public Type InferredType { get; set; }
+
         public abstract void Accept(IExpressionVisitor visitor);
     }
 }

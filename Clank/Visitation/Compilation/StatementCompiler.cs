@@ -97,7 +97,6 @@ namespace Clank.Visitation.Compilation
             if (forStmt.Condition != null)
             {
                 forStmt.Condition.Accept(_context.ExpressionCompiler);
-                generator.Emit(OpCodes.Unbox_Any, typeof(bool));
                 generator.Emit(OpCodes.Brfalse, loopEnd);
             }
 

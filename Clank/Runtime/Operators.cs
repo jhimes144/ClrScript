@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Clank.Runtime.Builtins;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,149 +11,115 @@ namespace Clank.Runtime
     {
         public static object Add(object left, object right)
         {
-            var leftType = left.GetTypeIncludeNull();
-            var rightType = right.GetTypeIncludeNull();
-
-            if (leftType == typeof(double)
-                   && rightType == typeof(double))
+            if (left is double leftD && right is double rightD)
             {
-                return (double)left + (double)right;
+                return leftD + rightD;
             }
 
-            if (leftType == typeof(string) && rightType == typeof(string))
+            if (left is string leftS)
             {
-                return (string)left + (string)right;
+                if (right is string rightS)
+                {
+                    return leftS + rightS;
+                }
+
+                return leftS + right;
             }
 
-            if (leftType == typeof(string))
+            if (right is string rightSS)
             {
-                return (string)left + right;
+                return left + rightSS;
             }
 
-            if (rightType == typeof(string))
-            {
-                return left + (string)right;
-            }
-
-            throw new ClankRuntimeException($"Cannot add {left.GetType()} with {right.GetType()}.");
+            throw new ClankRuntimeException($"Cannot add {left.GetTypeIncludeNull()} with {right.GetTypeIncludeNull()}.");
         }
 
         public static object Subtract(object left, object right)
         {
-            if (left.GetTypeIncludeNull() == typeof(double)
-                && right.GetTypeIncludeNull() == typeof(double))
+            if (left is double leftD && right is double rightD)
             {
-                return (double)left - (double)right;
+                return leftD - rightD;
             }
 
-            throw new ClankRuntimeException($"Cannot subtract {left.GetType()} with {right.GetType()}.");
+            throw new ClankRuntimeException($"Cannot subtract {left.GetTypeIncludeNull()} with {right.GetTypeIncludeNull()}.");
         }
 
         public static object Multiply(object left, object right)
         {
-            if (left.GetTypeIncludeNull() == typeof(double)
-                && right.GetTypeIncludeNull() == typeof(double))
+            if (left is double leftD && right is double rightD)
             {
-                return (double)left * (double)right;
+                return leftD * rightD;
             }
 
-            throw new ClankRuntimeException($"Cannot multiply {left.GetType()} with {right.GetType()}.");
+            throw new ClankRuntimeException($"Cannot multiply {left.GetTypeIncludeNull()} with {right.GetTypeIncludeNull()}.");
         }
 
         public static object Divide(object left, object right)
         {
-            if (left.GetTypeIncludeNull() == typeof(double)
-                && right.GetTypeIncludeNull() == typeof(double))
+            if (left is double leftD && right is double rightD)
             {
-                return (double)left / (double)right;
+                return leftD / rightD;
             }
 
-            throw new ClankRuntimeException($"Cannot divide {left.GetType()} with {right.GetType()}.");
+            throw new ClankRuntimeException($"Cannot divide {left.GetTypeIncludeNull()} with {right.GetTypeIncludeNull()}.");
         }
 
         public static bool EqualEqual(object left, object right)
         {
-            var leftType = left.GetTypeIncludeNull();
-            var rightType = right.GetTypeIncludeNull();
-
-            if (leftType == typeof(double)
-                && rightType == typeof(double))
+            return (left, right) switch
             {
-                return (double)left == (double)right;
-            }
-
-            if (leftType == typeof(bool)
-                && rightType == typeof(bool))
-            {
-                return (bool)left == (bool)right;
-            }
-
-            if (leftType == typeof(string)
-                && rightType == typeof(string))
-            {
-                return (string)left == (string)right;
-            }
-
-            return left == right;
+                (double leftD, double rightD) => leftD == rightD,
+                (bool leftB, bool rightB) => leftB == rightB,
+                (string leftS, string rightS) => leftS == rightS,
+                _ => left == right
+            };
         }
 
-        public static object GreaterThan(object left, object right)
+        public static bool GreaterThan(object left, object right)
         {
-            var leftType = left.GetTypeIncludeNull();
-            var rightType = right.GetTypeIncludeNull();
-
-            if (leftType == typeof(double) && rightType == typeof(double))
+            if (left is double leftD && right is double rightD)
             {
-                return (double)left > (double)right;
+                return leftD > rightD;
             }
 
-            throw new ClankRuntimeException($"Cannot perform operator > on {left.GetType()} with {right.GetType()}.");
+            throw new ClankRuntimeException($"Cannot perform operator > on {left.GetTypeIncludeNull()} with {right.GetTypeIncludeNull()}.");
         }
 
-        public static object LessThan(object left, object right)
+        public static bool LessThan(object left, object right)
         {
-            var leftType = left.GetTypeIncludeNull();
-            var rightType = right.GetTypeIncludeNull();
-
-            if (leftType == typeof(double) && rightType == typeof(double))
+            if (left is double leftD && right is double rightD)
             {
-                return (double)left < (double)right;
+                return leftD < rightD;
             }
 
-            throw new ClankRuntimeException($"Cannot perform operator < on {left.GetType()} with {right.GetType()}.");
+            throw new ClankRuntimeException($"Cannot perform operator < on {left.GetTypeIncludeNull()} with {right.GetTypeIncludeNull()}.");
         }
 
-        public static object GreaterThanOrEqual(object left, object right)
+        public static bool GreaterThanOrEqual(object left, object right)
         {
-            var leftType = left.GetTypeIncludeNull();
-            var rightType = right.GetTypeIncludeNull();
-
-            if (leftType == typeof(double) && rightType == typeof(double))
+            if (left is double leftD && right is double rightD)
             {
-                return (double)left >= (double)right;
+                return leftD >= rightD;
             }
 
-            throw new ClankRuntimeException($"Cannot perform operator >= on {left.GetType()} with {right.GetType()}.");
+            throw new ClankRuntimeException($"Cannot perform operator >= on {left.GetTypeIncludeNull()} with {right.GetTypeIncludeNull()}.");
         }
 
-        public static object LessThanOrEqual(object left, object right)
+        public static bool LessThanOrEqual(object left, object right)
         {
-            var leftType = left.GetTypeIncludeNull();
-            var rightType = right.GetTypeIncludeNull();
-
-            if (leftType == typeof(double) && rightType == typeof(double))
+            if (left is double leftD && right is double rightD)
             {
-                return (double)left <= (double)right;
+                return leftD <= rightD;
             }
 
-            throw new ClankRuntimeException($"Cannot perform operator <= on {left.GetType()} with {right.GetType()}.");
+            throw new ClankRuntimeException($"Cannot perform operator <= on {left.GetTypeIncludeNull()} with {right.GetTypeIncludeNull()}.");
         }
 
         public static object UnaryMinus(object value)
         {
-            if (value.GetTypeIncludeNull() == typeof(double))
+            if (value is double d)
             {
-                return -(double)value;
+                return -d;
             }
 
             throw new ClankRuntimeException($"Cannot perform unary operator - on {value.GetTypeIncludeNull()}.");
@@ -160,12 +127,30 @@ namespace Clank.Runtime
 
         public static object UnaryBang(object value)
         {
-            if (value.GetTypeIncludeNull() == typeof(bool))
+            if (value is bool b)
             {
-                return !(bool)value;
+                return !b;
             }
 
             throw new ClankRuntimeException($"Cannot perform unary operator ! on {value.GetTypeIncludeNull()}.");
+        }
+
+        public static void Assign(object instance, string memberName, object value)
+        {
+            var type = instance.GetTypeIncludeNull();
+
+            if (type == typeof(ClankObject))
+            {
+                ((ClankObject)value).Set(memberName, value);
+            }
+            else if (type.IsValueType || type == typeof(string))
+            {
+                throw new ClankRuntimeException($"Cannot perform assignment on {type}.");
+            }
+            else
+            {
+                throw new NotImplementedException("External type reflection assign.");
+            }
         }
     }
 }

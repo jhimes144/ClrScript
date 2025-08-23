@@ -1,4 +1,5 @@
 ﻿using Clank.Elements.Expressions;
+using Clank.Lexer.TokenReaders;
 using Clank.Runtime;
 using Clank.Runtime.Builtins;
 using System;
@@ -26,62 +27,119 @@ namespace Clank.Visitation.Compilation
 
         public void VisitAssign(Assign expr)
         {
-            expr.Expression.Accept(this);
-            _context.CurrentEnv.VariableEmitStoreFromEvalStack(expr.Name.Value);
+            if (expr.AssignTo is MemberRootAccess rootAccess)
+            {
+                expr.Expression.Accept(this);
+
+                if (rootAccess.AccessType == RootMemberAccessType.Variable)
+                {
+                    _context.CurrentEnv.VariableEmitStoreFromEvalStack(rootAccess.Name.Value);
+                }
+                else
+                {
+                    // external type
+                }
+            }
+            else if (expr.AssignTo is MemberAccess memberAccess)
+            {
+                var generator = _context.CurrentEnv.Generator;
+
+                memberAccess.Expr.Accept(this);
+                generator.Emit(OpCodes.Ldstr, memberAccess.Name.Value);
+                expr.Expression.Accept(this);
+
+                if (memberAccess.Expr.InferredType == typeof(ClankObject))
+                {
+                    generator.Emit(OpCodes.Callvirt, typeof(ClankObject)
+                            .GetMethod(nameof(ClankObject.Set)));
+                }
+                else
+                {
+                    generator.EmitCall(OpCodes.Call, typeof(Operators)
+                        .GetMethod(nameof(Operators.Assign)), null);
+                }
+            }
         }
 
         public void VisitBinary(Binary expr)
         {
+            var gen = _context.CurrentEnv.Generator;
             expr.Left.Accept(this);
             expr.Right.Accept(this);
 
             switch (expr.Op.Type)
             {
                 case Lexer.TokenType.Plus:
-                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
-                        .GetMethod(nameof(Operators.Add)), null);
+                    if (expr.InferredType == typeof(double))
+                    {
+                        gen.Emit(OpCodes.Add_Ovf);
+                    }
+                    else if (expr.InferredType == typeof(string))
+                    {
+                        gen.EmitCall(OpCodes.Call, typeof(string)
+                            .GetMethod(nameof(string.Concat)), null);
+                    }
+                    else
+                    {
+                        gen.EmitCall(OpCodes.Call, typeof(Operators)
+                            .GetMethod(nameof(Operators.Add)), null);
+                    }
                     break;
                 case Lexer.TokenType.Minus:
-                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                    gen.EmitCall(OpCodes.Call, typeof(Operators)
                         .GetMethod(nameof(Operators.Subtract)), null);
                     break;
                 case Lexer.TokenType.Multiply:
-                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                    gen.EmitCall(OpCodes.Call, typeof(Operators)
                             .GetMethod(nameof(Operators.Multiply)), null);
                     break;
                 case Lexer.TokenType.Divide:
-                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                    gen.EmitCall(OpCodes.Call, typeof(Operators)
                         .GetMethod(nameof(Operators.Divide)), null);
                     break;
                 case Lexer.TokenType.EqualEqual:
-                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                    gen.EmitCall(OpCodes.Call, typeof(Operators)
                         .GetMethod(nameof(Operators.EqualEqual)), null);
-                    // equal equal returns bool unboxed
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Box, typeof(bool));
                     break;
                 case Lexer.TokenType.BangEqual:
-                    // equal equal returns bool unboxed
-                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                    gen.EmitCall(OpCodes.Call, typeof(Operators)
                         .GetMethod(nameof(Operators.EqualEqual)), null);
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Ldc_I4_0);
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Ceq);
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Box, typeof(bool));
+                    gen.Emit(OpCodes.Ldc_I4_0);
+                    gen.Emit(OpCodes.Ceq);
                     break;
                 case Lexer.TokenType.GreaterThan:
-                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                    gen.EmitCall(OpCodes.Call, typeof(Operators)
                         .GetMethod(nameof(Operators.GreaterThan)), null);
                     break;
                 case Lexer.TokenType.LessThan:
-                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
+                    gen.EmitCall(OpCodes.Call, typeof(Operators)
                         .GetMethod(nameof(Operators.LessThan)), null);
                     break;
                 case Lexer.TokenType.GreaterThanOrEqual:
-                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
-                        .GetMethod(nameof(Operators.GreaterThanOrEqual)), null);
+                    if (expr.InferredType == typeof(double))
+                    {
+                        _context.CurrentEnv.Generator.Emit(OpCodes.Clt);
+                        _context.CurrentEnv.Generator.Emit(OpCodes.Ldc_I4_0);
+                        _context.CurrentEnv.Generator.Emit(OpCodes.Ceq);
+                    }
+                    else
+                    {
+                        gen.EmitCall(OpCodes.Call, typeof(Operators)
+                            .GetMethod(nameof(Operators.GreaterThanOrEqual)), null);
+                    }
                     break;
                 case Lexer.TokenType.LessThanOrEqual:
-                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
-                        .GetMethod(nameof(Operators.LessThanOrEqual)), null);
+                    if (expr.InferredType == typeof(double))
+                    {
+                        _context.CurrentEnv.Generator.Emit(OpCodes.Cgt);
+                        _context.CurrentEnv.Generator.Emit(OpCodes.Ldc_I4_0);
+                        _context.CurrentEnv.Generator.Emit(OpCodes.Ceq);
+                    }
+                    else
+                    {
+                        gen.EmitCall(OpCodes.Call, typeof(Operators)
+                            .GetMethod(nameof(Operators.LessThanOrEqual)), null);
+                    }
                     break;
                 default:
                     throw new Exception("Incorrect token type for op on binary expression.");
@@ -108,7 +166,6 @@ namespace Clank.Visitation.Compilation
             if (expr.Value is double d)
             {
                 _context.CurrentEnv.Generator.Emit(OpCodes.Ldc_R8, d);
-                _context.CurrentEnv.Generator.Emit(OpCodes.Box, typeof(double));
             }
             else if (expr.Value is string s)
             {
@@ -121,7 +178,6 @@ namespace Clank.Visitation.Compilation
             else if (expr.Value is bool b)
             {
                 _context.CurrentEnv.Generator.Emit(b ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
-                _context.CurrentEnv.Generator.Emit(OpCodes.Box, typeof(bool));
             }
             else
             {
@@ -169,20 +225,20 @@ namespace Clank.Visitation.Compilation
         public void VisitMemberAccess(MemberAccess memberAccess)
         {
             memberAccess.Expr.Accept(this);
+            var generator = _context.CurrentEnv.Generator;
 
-            // get the field/property symbol
-            //var symbol = _context.AnalysisContext.SymbolTable
-            //    .GetSymbolFor(memberAccess);
-
-            //if (symbol.MemberInfo is FieldInfo field)
-            //{
-            //    _context.CurrentEnv.Generator.Emit(OpCodes.Ldfld, field);
-            //}
-            //else
-            //{
-            //    throw new NotImplementedException();
-            //}
+            if (memberAccess.Expr.InferredType == typeof(ClankObject))
+            {
+                generator.Emit(OpCodes.Ldstr, memberAccess.Name.Value);
+                generator.Emit(OpCodes.Callvirt, typeof(ClankObject)
+                    .GetMethod(nameof(ClankObject.Get)));
+            }
+            else
+            {
+                throw new NotImplementedException("dynamic member access");
+            }
         }
+
 
         public void VisitObjectLiteral(ObjectLiteral objLiteral)
         {
@@ -193,15 +249,11 @@ namespace Clank.Visitation.Compilation
             foreach (var (key, value) in objLiteral.Properties)
             {
                 generator.Emit(OpCodes.Dup);
-
-                generator.Emit(OpCodes.Ldfld, typeof(ClankObject)
-                    .GetField("_properties", BindingFlags.NonPublic | BindingFlags.Instance));
-
                 generator.Emit(OpCodes.Ldstr, key.Value);
 
                 value.Accept(this);
-                generator.Emit(OpCodes.Callvirt, typeof(Dictionary<string, object>)
-                            .GetMethod("set_Item"));
+                generator.Emit(OpCodes.Callvirt, typeof(ClankObject)
+                            .GetMethod(nameof(ClankObject.Set)));
             }
         }
 
