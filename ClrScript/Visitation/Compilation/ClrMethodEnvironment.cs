@@ -21,10 +21,10 @@ namespace ClrScript.Visitation.Compilation
             
         }
 
-        public void DeclareVariable(VarStmt stmt)
+        public void DeclareVariable(string name, Type type)
         {
-            var lVar = Generator.DeclareLocal(stmt.InferredType ?? typeof(object));
-            _localsByName.Add(stmt.Name.Value, lVar);
+            var lVar = Generator.DeclareLocal(type);
+            _localsByName.Add(name, lVar);
         }
 
         public void VariableEmitLoadIntoEvalStack(string name)

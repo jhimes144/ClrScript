@@ -9,8 +9,6 @@ namespace ClrScript.Elements.Statements
 {
     abstract class Stmt : Element
     {
-        public Type InferredType { get; set; }
-
         public abstract void Accept(IStatementVisitor visitor);
     }
 }

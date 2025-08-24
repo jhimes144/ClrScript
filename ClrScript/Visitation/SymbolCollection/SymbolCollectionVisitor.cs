@@ -26,7 +26,23 @@ namespace ClrScript.Visitation.SymbolCollection
             if (expr.AssignTo is MemberRootAccess rootAccess)
             {
                 expr.Expression.Accept(this);
-                expr.InferredType = expr.InferredType;
+
+                if (rootAccess.AccessType == RootMemberAccessType.Variable)
+                {
+                    // check if our assign does not match the declaration variable inferred type.
+                    var variableSymbol = _symbolTable.CurrentScope.FindSymbolGoingUp
+                            (rootAccess.Name.Value, out _);
+
+                    var declaration = variableSymbol.Element as VarStmt;
+
+                    if (declaration.InferredType != expr.Expression.InferredType)
+                    {
+                        // we no longer can know (if we ever did) the inferred type of the variable.
+                        declaration.InferredType = null;
+                    }
+
+                    rootAccess.InferredType = declaration.InferredType;
+                }
             }
             else if (expr.AssignTo is MemberAccess memberAccess)
             {

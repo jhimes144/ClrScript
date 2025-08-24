@@ -57,14 +57,24 @@ namespace ClrScript.Visitation.Compilation
         public void VisitReturnStmt(ReturnStmt returnStmt)
         {
             returnStmt.Expression.Accept(_context.ExpressionCompiler);
+
+            if (returnStmt.Expression.InferredType?.IsValueType ?? false)
+            {
+                _context.CurrentEnv.Generator.Emit(OpCodes.Box, returnStmt.Expression.InferredType);
+            }
+            
             _context.CurrentEnv.Generator.Emit(OpCodes.Ret);
             _context.ReturnPrepped = true;
         }
 
         public void VisitVarStmt(VarStmt varStmt)
         {
-            _context.CurrentEnv.DeclareVariable(varStmt);
+            var type = varStmt.GetInferredType();
+            _context.CurrentEnv.DeclareVariable(varStmt.Name.Value, type);
+
             varStmt.Initializer.Accept(_context.ExpressionCompiler);
+            _context.CurrentEnv.Generator.EmitBoxIfNeeded(varStmt, varStmt.Initializer);
+
             _context.CurrentEnv.VariableEmitStoreFromEvalStack(varStmt.Name.Value);
         }
 

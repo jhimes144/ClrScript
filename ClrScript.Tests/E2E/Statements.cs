@@ -20,9 +20,32 @@ namespace ClrScript.Tests.E2E
                 return sum;
             ";
 
-            var context = ClrScriptContext<object, double>.Compile(code);
+            var context = ClrScriptContext<object>.Compile(code);
             var result = context.Run();
-            Assert.AreEqual(55, result);
+            Assert.AreEqual(55d, result);
+        }
+
+        [TestMethod]
+        public void For_Loop_Sum_UnOptimized()
+        {
+            var code = @"
+                var sum = 0;
+
+                if (false)
+                {
+                   sum = ""potato"";
+                }
+                
+                for (var i = 1; i <= 10; i = i + 1) {
+                    sum = sum + i;
+                }
+
+                return sum;
+            ";
+
+            var context = ClrScriptContext<object>.Compile(code);
+            var result = context.Run();
+            Assert.AreEqual(55d, result);
         }
     }
 }

@@ -6,10 +6,11 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using ClrScript.Elements;
 
 namespace ClrScript
 {
-    public class ILOpDisplay
+    class ILOpDisplay
     {
         public OpCode Code { get; }
 
@@ -36,7 +37,7 @@ namespace ClrScript
         }
     }
 
-    public class ILGeneratorWrapper
+    class ILGeneratorWrapper
     {
         readonly ILGenerator _ilGenerator;
         readonly List<ILOpDisplay> _instructionsRendered = new List<ILOpDisplay>();
@@ -221,6 +222,17 @@ namespace ClrScript
         public virtual void UsingNamespace(string usingNamespace)
         {
             _ilGenerator.UsingNamespace(usingNamespace);
+        }
+
+        public void EmitBoxIfNeeded(Element currentElement, Element previousElement)
+        {
+            var currentElementT = currentElement?.GetInferredType() ?? typeof(object);
+            var previousElementT = previousElement?.GetInferredType() ?? typeof(object);
+
+            if (currentElementT == typeof(object) && previousElementT.IsValueType)
+            {
+                Emit(OpCodes.Box, previousElement.GetInferredType());
+            }
         }
 
         public override string ToString()

@@ -64,8 +64,11 @@ namespace ClrScript.Visitation.Compilation
         public void VisitBinary(Binary expr)
         {
             var gen = _context.CurrentEnv.Generator;
+
             expr.Left.Accept(this);
+            gen.EmitBoxIfNeeded(expr, expr.Left);
             expr.Right.Accept(this);
+            gen.EmitBoxIfNeeded(expr, expr.Right);
 
             switch (expr.Op.Type)
             {
