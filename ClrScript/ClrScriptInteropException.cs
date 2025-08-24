@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace ClrScript
 {
-    public class ClrScriptRuntimeException : Exception
+    public class ClrScriptInteropException : Exception
     {
-        internal ClrScriptRuntimeException(string message) : base(message) { }
+        internal ClrScriptInteropException(string message) : base(message) { }
     }
 }

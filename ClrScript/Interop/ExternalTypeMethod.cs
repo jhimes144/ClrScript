@@ -7,10 +7,8 @@ using System.Threading.Tasks;
 
 namespace ClrScript.Interop
 {
-    class ExternalTypeMethod
+    class ExternalTypeMethod : ExternalTypeMember
     {
-        public string NameOverride { get; set; }
-
         public MethodInfo Method { get; set; }
     }
 }

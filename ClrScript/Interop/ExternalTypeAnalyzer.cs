@@ -32,7 +32,8 @@ namespace ClrScript.Interop
 
             if (typeof(IImplementsPrintStmt).IsAssignableFrom(InType.ClrType))
             {
-                PrintStmtMethod = InType.ClrType.GetMethod(nameof(IImplementsPrintStmt.Print), new Type[] { typeof(object) });
+                PrintStmtMethod = typeof(IImplementsPrintStmt).GetMethod
+                    (nameof(IImplementsPrintStmt.Print), new Type[] { typeof(object) });
             }
         }
 
@@ -49,6 +50,11 @@ namespace ClrScript.Interop
                 return;
             }
 
+            if (type == typeof(string))
+            {
+                return;
+            }
+
             if (_externalTypesByRealTypeName.ContainsKey(type.Name))
             {
                 return;
@@ -57,22 +63,22 @@ namespace ClrScript.Interop
             //if (type.IsValueType && type != 
             //    _numberType && type != typeof(bool))
             //{
-            //    throw new ClrScriptCompileException($"'{type}' is an invalid value type. It must be either a {_numberType.Name} or boolean.");
+            //    throw new ClrScriptInteropException($"'{type}' is an invalid value type. It must be either a {_numberType.Name} or boolean.");
             //}
 
             if (!type.IsPublic)
             {
-                throw new ClrScriptCompileException($"'{type}' is an invalid ClrScript type. Type must be public.");
+                throw new ClrScriptInteropException($"'{type}' is an invalid ClrScript type. Type must be public and not nested in another class/interface.");
             }
 
             if (type.IsGenericType)
             {
-                throw new ClrScriptCompileException($"'{type}' is an invalid ClrScript type. Generics are not supported.");
+                throw new ClrScriptInteropException($"'{type}' is an invalid ClrScript type. Generics are not supported.");
             }
 
             if (type.IsPointer)
             {
-                throw new ClrScriptCompileException($"'{type}' is an invalid ClrScript type. Pointers are not supported.");
+                throw new ClrScriptInteropException($"'{type}' is an invalid ClrScript type. Pointers are not supported.");
             }
 
             var methods = type.GetMethods()
@@ -87,13 +93,13 @@ namespace ClrScript.Interop
 
                 if (method.IsGenericMethod)
                 {
-                    throw new ClrScriptCompileException($"'{type}' -> '{method.Name}' cannot be used as" +
+                    throw new ClrScriptInteropException($"'{type}' -> '{method.Name}' cannot be used as" +
                         $" a ClrScript method because generics are not supported.");
                 }
 
                 if (method.IsStatic)
                 {
-                    throw new ClrScriptCompileException($"'{type}' -> '{method.Name}' cannot be used as" +
+                    throw new ClrScriptInteropException($"'{type}' -> '{method.Name}' cannot be used as" +
                         $" a ClrScript method. Static methods are not supported.");
                 }
 
@@ -145,7 +151,7 @@ namespace ClrScript.Interop
 
                 if (field.IsStatic)
                 {
-                    throw new ClrScriptCompileException($"'{type}' -> '{field.Name}' cannot be used as" +
+                    throw new ClrScriptInteropException($"'{type}' -> '{field.Name}' cannot be used as" +
                         $" a ClrScript field. Static fields are not supported.");
                 }
 

@@ -81,6 +81,11 @@ namespace ClrScript.Parser
 
             if (matchAny(TokenType.Print))
             {
+                if (!_settings.AllowPrintStatement)
+                {
+                    throw new ClrScriptCompileException("Print statement is not allowed in the current environment.", previous());
+                }
+
                 return printStatement();
             }
 
@@ -132,6 +137,7 @@ namespace ClrScript.Parser
         {
             var expr = expression();
             consumeSemiColon();
+
             return new PrintStmt(expr);
         }
 
@@ -243,39 +249,6 @@ namespace ClrScript.Parser
             }
 
             return expr;
-        }
-
-        bool tryConsumeTypePrefix(out string typePrefix)
-        {
-            var typeB = new StringBuilder();
-
-            // we do look ahead for an identifier because either way, a type prefix
-            // will always have an identifier after it.
-
-            if (matchAny(TokenType.Identifier))
-            {
-                typeB.Append(previous().Value);
-
-                if (check(TokenType.Identifier))
-                {
-                    typePrefix = typeB.ToString();
-                    return true;
-                }
-
-                // arrays
-                if (matchAny(TokenType.LeftBracket) && matchAny(TokenType.RightBracket))
-                {
-                    if (check(TokenType.Identifier))
-                    {
-                        typeB.Append("[]");
-                        typePrefix = typeB.ToString();
-                        return true;
-                    }
-                }
-            }
-
-            typePrefix = null;
-            return false;
         }
 
         bool isLambda()
@@ -563,6 +536,12 @@ namespace ClrScript.Parser
             }
 
             consume(TokenType.RightBrace, "Expected '}' after object literal.");
+
+            if (!_settings.AllowUserObjectConstruction)
+            {
+                throw new ClrScriptCompileException("Object literals are not allowed in this environment.", openBrace);
+            }
+
             return new ObjectLiteral(properties, openBrace);
         }
 

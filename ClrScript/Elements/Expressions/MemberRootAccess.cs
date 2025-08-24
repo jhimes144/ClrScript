@@ -3,6 +3,7 @@ using ClrScript.Visitation;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -21,6 +22,8 @@ namespace ClrScript.Elements.Expressions
         public override Token StartLocation => Name;
 
         public RootMemberAccessType AccessType { get; set; }
+
+        public PropertyInfo InferredProperty { get; set; }
 
         public MemberRootAccess(Token name)
         {

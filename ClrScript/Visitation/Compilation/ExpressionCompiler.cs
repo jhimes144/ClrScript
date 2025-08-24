@@ -29,15 +29,20 @@ namespace ClrScript.Visitation.Compilation
         {
             if (expr.AssignTo is MemberRootAccess rootAccess)
             {
-                expr.Expression.Accept(this);
-
                 if (rootAccess.AccessType == RootMemberAccessType.Variable)
                 {
+                    expr.Expression.Accept(this);
                     _context.CurrentEnv.VariableEmitStoreFromEvalStack(rootAccess.Name.Value);
+                }
+                else if (rootAccess.AccessType == RootMemberAccessType.External)
+                {
+                    _context.CurrentEnv.Generator.Emit(OpCodes.Ldarg_1);
+                    expr.Expression.Accept(this);
+                    _context.CurrentEnv.Generator.Emit(OpCodes.Callvirt, rootAccess.InferredProperty.GetSetMethod());
                 }
                 else
                 {
-                    // external type
+                    throw new NotSupportedException();
                 }
             }
             else if (expr.AssignTo is MemberAccess memberAccess)
@@ -55,8 +60,8 @@ namespace ClrScript.Visitation.Compilation
                 }
                 else
                 {
-                    generator.EmitCall(OpCodes.Call, typeof(Operators)
-                        .GetMethod(nameof(Operators.Assign)), null);
+                    generator.EmitCall(OpCodes.Call, typeof(DynamicOperators)
+                        .GetMethod(nameof(DynamicOperators.Assign)), null);
                 }
             }
         }
@@ -84,39 +89,90 @@ namespace ClrScript.Visitation.Compilation
                     }
                     else
                     {
-                        gen.EmitCall(OpCodes.Call, typeof(Operators)
-                            .GetMethod(nameof(Operators.Add)), null);
+                        gen.EmitCall(OpCodes.Call, typeof(DynamicOperators)
+                            .GetMethod(nameof(DynamicOperators.Add)), null);
                     }
                     break;
                 case Lexer.TokenType.Minus:
-                    gen.EmitCall(OpCodes.Call, typeof(Operators)
-                        .GetMethod(nameof(Operators.Subtract)), null);
+                    if (expr.InferredType == typeof(double))
+                    {
+                        gen.Emit(OpCodes.Sub_Ovf);
+                    }
+                    else
+                    {
+                        gen.EmitCall(OpCodes.Call, typeof(DynamicOperators)
+                            .GetMethod(nameof(DynamicOperators.Subtract)), null);
+                    }
                     break;
                 case Lexer.TokenType.Multiply:
-                    gen.EmitCall(OpCodes.Call, typeof(Operators)
-                            .GetMethod(nameof(Operators.Multiply)), null);
+                    if (expr.InferredType == typeof(double))
+                    {
+                        gen.Emit(OpCodes.Mul_Ovf);
+                    }
+                    else
+                    {
+                        gen.EmitCall(OpCodes.Call, typeof(DynamicOperators)
+                                .GetMethod(nameof(DynamicOperators.Multiply)), null);
+                    }
                     break;
                 case Lexer.TokenType.Divide:
-                    gen.EmitCall(OpCodes.Call, typeof(Operators)
-                        .GetMethod(nameof(Operators.Divide)), null);
+                    if (expr.InferredType == typeof(double))
+                    {
+                        gen.Emit(OpCodes.Div);
+                    }
+                    else
+                    {
+                        gen.EmitCall(OpCodes.Call, typeof(DynamicOperators)
+                            .GetMethod(nameof(DynamicOperators.Divide)), null);
+                    }
                     break;
                 case Lexer.TokenType.EqualEqual:
-                    gen.EmitCall(OpCodes.Call, typeof(Operators)
-                        .GetMethod(nameof(Operators.EqualEqual)), null);
+                    if (expr.InferredType == typeof(double))
+                    {
+                        gen.Emit(OpCodes.Ceq);
+                    }
+                    else
+                    {
+                        gen.EmitCall(OpCodes.Call, typeof(DynamicOperators)
+                            .GetMethod(nameof(DynamicOperators.EqualEqual)), null);
+                    }
                     break;
                 case Lexer.TokenType.BangEqual:
-                    gen.EmitCall(OpCodes.Call, typeof(Operators)
-                        .GetMethod(nameof(Operators.EqualEqual)), null);
-                    gen.Emit(OpCodes.Ldc_I4_0);
-                    gen.Emit(OpCodes.Ceq);
+                    if (expr.InferredType == typeof(double))
+                    {
+                        gen.Emit(OpCodes.Ceq);
+                        gen.Emit(OpCodes.Ldc_I4_0);
+                        gen.Emit(OpCodes.Ceq);
+                    }
+                    else
+                    {
+                        gen.EmitCall(OpCodes.Call, typeof(DynamicOperators)
+                            .GetMethod(nameof(DynamicOperators.EqualEqual)), null);
+                        gen.Emit(OpCodes.Ldc_I4_0);
+                        gen.Emit(OpCodes.Ceq);
+                    }
                     break;
                 case Lexer.TokenType.GreaterThan:
-                    gen.EmitCall(OpCodes.Call, typeof(Operators)
-                        .GetMethod(nameof(Operators.GreaterThan)), null);
+                    if (expr.InferredType == typeof(double))
+                    {
+                        gen.Emit(OpCodes.Cgt);
+                    }
+                    else
+                    {
+                        gen.EmitCall(OpCodes.Call, typeof(DynamicOperators)
+                            .GetMethod(nameof(DynamicOperators.GreaterThan)), null);
+                    }
                     break;
                 case Lexer.TokenType.LessThan:
-                    gen.EmitCall(OpCodes.Call, typeof(Operators)
-                        .GetMethod(nameof(Operators.LessThan)), null);
+                    if (expr.InferredType == typeof(double))
+                    {
+                        _context.CurrentEnv.Generator.Emit(OpCodes.Clt);
+                    }
+                    else
+                    {
+                        gen.EmitCall(OpCodes.Call, typeof(DynamicOperators)
+                            .GetMethod(nameof(DynamicOperators.LessThan)), null);
+                    }
                     break;
                 case Lexer.TokenType.GreaterThanOrEqual:
                     if (expr.InferredType == typeof(double))
@@ -127,8 +183,8 @@ namespace ClrScript.Visitation.Compilation
                     }
                     else
                     {
-                        gen.EmitCall(OpCodes.Call, typeof(Operators)
-                            .GetMethod(nameof(Operators.GreaterThanOrEqual)), null);
+                        gen.EmitCall(OpCodes.Call, typeof(DynamicOperators)
+                            .GetMethod(nameof(DynamicOperators.GreaterThanOrEqual)), null);
                     }
                     break;
                 case Lexer.TokenType.LessThanOrEqual:
@@ -140,8 +196,8 @@ namespace ClrScript.Visitation.Compilation
                     }
                     else
                     {
-                        gen.EmitCall(OpCodes.Call, typeof(Operators)
-                            .GetMethod(nameof(Operators.LessThanOrEqual)), null);
+                        gen.EmitCall(OpCodes.Call, typeof(DynamicOperators)
+                            .GetMethod(nameof(DynamicOperators.LessThanOrEqual)), null);
                     }
                     break;
                 default:
@@ -267,13 +323,13 @@ namespace ClrScript.Visitation.Compilation
             switch (expr.Op.Type)
             {
                 case Lexer.TokenType.Minus:
-                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
-                        .GetMethod(nameof(Operators.UnaryMinus)), null);
+                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(DynamicOperators)
+                        .GetMethod(nameof(DynamicOperators.UnaryMinus)), null);
                     break;
 
                 case Lexer.TokenType.Bang:
-                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(Operators)
-                        .GetMethod(nameof(Operators.UnaryBang)), null);
+                    _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(DynamicOperators)
+                        .GetMethod(nameof(DynamicOperators.UnaryBang)), null);
                     break;
 
                 case Lexer.TokenType.Plus:
@@ -292,7 +348,15 @@ namespace ClrScript.Visitation.Compilation
             {
                 _context.CurrentEnv.VariableEmitLoadIntoEvalStack(var.Name.Value);
             }
-            
+            else if (var.AccessType == RootMemberAccessType.External)
+            {
+                _context.CurrentEnv.Generator.Emit(OpCodes.Ldarg_1);
+                _context.CurrentEnv.Generator.Emit(OpCodes.Callvirt, var.InferredProperty.GetGetMethod());
+            }
+            else
+            {
+                throw new NotSupportedException();
+            }
         }
 
         public void VisitCall(Call call)

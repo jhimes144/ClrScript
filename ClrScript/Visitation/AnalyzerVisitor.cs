@@ -1,5 +1,6 @@
 ﻿using ClrScript.Elements.Expressions;
 using ClrScript.Elements.Statements;
+using ClrScript.Interop;
 using ClrScript.Runtime.Builtins;
 using System;
 using System.Collections.Generic;
@@ -7,17 +8,21 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ClrScript.Visitation.SymbolCollection
+namespace ClrScript.Visitation
 {
-    class SymbolCollectionVisitor : IStatementVisitor, IExpressionVisitor
+    class AnalyzerVisitor : IStatementVisitor, IExpressionVisitor
     {
         readonly SymbolTable _symbolTable;
-        readonly List<ClrScriptCompileException> _errors;
+        readonly List<ClrScriptCompileError> _errors;
+        readonly ExternalTypeAnalyzer _externalTypeAnalyzer;
 
-        public SymbolCollectionVisitor(SymbolTable symbolTable, List<ClrScriptCompileException> errors)
+        public AnalyzerVisitor(SymbolTable symbolTable,
+            ExternalTypeAnalyzer externalTypeAnalyzer,
+            List<ClrScriptCompileError> errors)
         {
             _errors = errors;
             _symbolTable = symbolTable;
+            _externalTypeAnalyzer = externalTypeAnalyzer;
             _symbolTable.BeginScope(ScopeKind.Root);
         }
 
@@ -27,13 +32,13 @@ namespace ClrScript.Visitation.SymbolCollection
             {
                 expr.Expression.Accept(this);
 
-                if (rootAccess.AccessType == RootMemberAccessType.Variable)
+                var existingSymbol = _symbolTable.CurrentScope.FindSymbolGoingUp
+                    (rootAccess.Name.Value, out _);
+
+                if (existingSymbol != null)
                 {
                     // check if our assign does not match the declaration variable inferred type.
-                    var variableSymbol = _symbolTable.CurrentScope.FindSymbolGoingUp
-                            (rootAccess.Name.Value, out _);
-
-                    var declaration = variableSymbol.Element as VarStmt;
+                    var declaration = existingSymbol.Element as VarStmt;
 
                     if (declaration.InferredType != expr.Expression.InferredType)
                     {
@@ -41,14 +46,40 @@ namespace ClrScript.Visitation.SymbolCollection
                         declaration.InferredType = null;
                     }
 
+                    rootAccess.AccessType = RootMemberAccessType.Variable;
                     rootAccess.InferredType = declaration.InferredType;
+                    return;
+                }
+                else
+                {
+                    var externalMember = _externalTypeAnalyzer.InType.FindMemberByName(rootAccess.Name.Value);
+
+                    if (externalMember != null)
+                    {
+                        if (externalMember is ExternalTypeProperty prop)
+                        {
+                            if (prop.Property.GetSetMethod() == null)
+                            {
+                                _errors.Add(new ClrScriptCompileError($"'{rootAccess.Name.Value}' is read-only.", rootAccess));
+                                return;
+                            }
+
+                            rootAccess.AccessType = RootMemberAccessType.External;
+                            rootAccess.InferredType = prop.Property.PropertyType;
+                            rootAccess.InferredProperty = prop.Property;
+                            return;
+                        }
+                    }
                 }
             }
             else if (expr.AssignTo is MemberAccess memberAccess)
             {
                 memberAccess.Expr.Accept(this);
                 expr.Expression.Accept(this);
+                return;
             }
+
+            _errors.Add(new ClrScriptCompileError($"The left hand of an assignment must be variable, property, or indexer.", expr));
         }
 
         public void VisitBinary(Binary expr)
@@ -178,11 +209,32 @@ namespace ClrScript.Visitation.SymbolCollection
                     return;
                 }
 
-                _errors.Add(new ClrScriptCompileException($"'{member.Name.Value}' must point to either a const, eternal, or var declaration.", member));
+                _errors.Add(new ClrScriptCompileError($"'{member.Name.Value}' must point to either a const, eternal, or var declaration.", member));
                 return;
             }
+            else
+            {
+                var externalMember = _externalTypeAnalyzer.InType.FindMemberByName(member.Name.Value);
 
-            _errors.Add(new ClrScriptCompileException($"Variable '{member.Name.Value}' does not exist.", member));
+                if (externalMember != null)
+                {
+                    if (externalMember is ExternalTypeProperty prop)
+                    {
+                        if (prop.Property.GetGetMethod() == null)
+                        {
+                            _errors.Add(new ClrScriptCompileError($"'{member.Name.Value}' cannot be read.", member));
+                            return;
+                        }
+
+                        member.AccessType = RootMemberAccessType.External;
+                        member.InferredType = prop.Property.PropertyType;
+                        member.InferredProperty = prop.Property;
+                        return;
+                    }
+                }
+            }
+
+            _errors.Add(new ClrScriptCompileError($"Variable '{member.Name.Value}' does not exist.", member));
         }
 
         public void VisitVarStmt(VarStmt varStmt)
@@ -194,15 +246,24 @@ namespace ClrScript.Visitation.SymbolCollection
             {
                 if (foundScopeExist == _symbolTable.CurrentScope)
                 {
-                    _errors.Add(new ClrScriptCompileException($"Variable has a bad name. " +
+                    _errors.Add(new ClrScriptCompileError($"Variable has a bad name. " +
                         $"'{varStmt.Name.Value}' has already been declared in the current scope.", varStmt));
                 }
                 else
                 {
-                    _errors.Add(new ClrScriptCompileException($"Variable has a bad name. " +
+                    _errors.Add(new ClrScriptCompileError($"Variable has a bad name. " +
                         $"'{varStmt.Name.Value}' has already been declared in an enclosing scope.", varStmt));
                 }
 
+                return;
+            }
+
+            var externalMember = _externalTypeAnalyzer.InType.FindMemberByName(varStmt.Name.Value);
+
+            if (externalMember != null)
+            {
+                _errors.Add(new ClrScriptCompileError($"Variable has a bad name. " +
+                    $"'{varStmt.Name.Value}' is reserved by a system implementation.", varStmt));
                 return;
             }
 

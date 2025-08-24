@@ -4,10 +4,6 @@
 	  <TargetFrameworks>net9.0;netstandard2.1</TargetFrameworks>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Folder Include="Visitation\Analyzer\" />
-  </ItemGroup>
-
 	<ItemGroup>
 		<InternalsVisibleTo Include="ClrScriptDynamic" />
 	</ItemGroup>

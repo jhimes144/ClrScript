@@ -1,14 +1,13 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace ClrScript.Interop
 {
-    class ExternalTypeField : ExternalTypeMember
+    abstract class ExternalTypeMember
     {
-        public FieldInfo Field { get; set; }
+        public string NameOverride { get; set; }
     }
 }

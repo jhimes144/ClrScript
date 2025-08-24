@@ -28,6 +28,9 @@ namespace ClrScript.Tests.E2E
         [TestMethod]
         public void For_Loop_Sum_UnOptimized()
         {
+            // this will not perform any value
+            // if we ever start optimizing if (false) code away.
+
             var code = @"
                 var sum = 0;
 

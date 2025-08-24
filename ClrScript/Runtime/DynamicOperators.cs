@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace ClrScript.Runtime
 {
-    public static class Operators
+    public static class DynamicOperators
     {
         public static object Add(object left, object right)
         {

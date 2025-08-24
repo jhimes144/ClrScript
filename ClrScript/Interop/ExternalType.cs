@@ -36,5 +36,31 @@ namespace ClrScript.Interop
         {
             Error = error;
         }
+
+        public ExternalTypeMember FindMemberByName(string name)
+        {
+            var method = Methods.FirstOrDefault(m => m.NameOverride == name);
+
+            if (method != null)
+            {
+                return method;
+            }
+
+            var prop = Properties.FirstOrDefault(m => m.NameOverride == name);
+
+            if (prop != null)
+            {
+                return prop;
+            }
+
+            var field = Fields.FirstOrDefault(m => m.NameOverride == name);
+
+            if (field != null)
+            {
+                return field;
+            }
+
+            return null;
+        }
     }
 }

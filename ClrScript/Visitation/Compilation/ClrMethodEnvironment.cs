@@ -59,7 +59,7 @@ namespace ClrScript.Visitation.Compilation
             {
                 if (local.LocalIndex > short.MaxValue)
                 {
-                    throw new ClrScriptCompileException($"Too many variables! " +
+                    throw new Exception($"Too many variables! " +
                         $"The max number of variables that can be declared within a module or lambda is {short.MaxValue}.");
                 }
 
@@ -99,7 +99,7 @@ namespace ClrScript.Visitation.Compilation
             {
                 if (local.LocalIndex > short.MaxValue)
                 {
-                    throw new ClrScriptCompileException($"Too many variables! " +
+                    throw new Exception($"Too many variables! " +
                         $"The max number of variables that can be declared within a module or lambda is {short.MaxValue}.");
                 }
 

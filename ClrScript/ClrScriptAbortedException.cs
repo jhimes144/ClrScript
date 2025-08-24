@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 
 namespace ClrScript
 {
-    public class ClrScriptRuntimeException : Exception
+    public class ClrScriptAbortedException : Exception
     {
-        internal ClrScriptRuntimeException(string message) : base(message) { }
+        internal ClrScriptAbortedException(string message) : base(message)
+        {
+        }
     }
 }

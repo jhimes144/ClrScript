@@ -7,10 +7,8 @@ using System.Threading.Tasks;
 
 namespace ClrScript.Interop
 {
-    class ExternalTypeProperty
+    class ExternalTypeProperty : ExternalTypeMember
     {
-        public string NameOverride { get; set; }
-
         public PropertyInfo Property { get; set; }
     }
 }

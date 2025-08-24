@@ -229,7 +229,7 @@ namespace ClrScript
             var currentElementT = currentElement?.GetInferredType() ?? typeof(object);
             var previousElementT = previousElement?.GetInferredType() ?? typeof(object);
 
-            if (currentElementT == typeof(object) && previousElementT.IsValueType)
+            if (!currentElementT.IsValueType && previousElementT.IsValueType)
             {
                 Emit(OpCodes.Box, previousElement.GetInferredType());
             }
