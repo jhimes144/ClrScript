@@ -7,6 +7,8 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using ClrScript.Elements;
+using ClrScript.Elements.Expressions;
+using ClrScript.Visitation;
 
 namespace ClrScript
 {
@@ -232,6 +234,37 @@ namespace ClrScript
             if (!currentElementT.IsValueType && previousElementT.IsValueType)
             {
                 Emit(OpCodes.Box, previousElement.GetInferredType());
+            }
+        }
+
+        public void EmitDynamicToTypedAssign(Expr expression, IExpressionVisitor exprVisitor,
+            Action emitLdAssigneObject, MemberInfo member)
+        {
+            Type memberAssignType;
+            PropertyInfo prop = null;
+            FieldInfo field = null;
+
+            if (member is PropertyInfo propP)
+            {
+                memberAssignType = prop.PropertyType;
+                prop = propP;
+            }
+            else if (member is FieldInfo fieldP)
+            {
+                memberAssignType = field.FieldType;
+                field = fieldP;
+            }
+            else
+            {
+                throw new NotSupportedException("Invalid member type, must be field or property.");
+            }
+
+            if (expression.InferredType == memberAssignType)
+            {
+                // direct assign
+                emitLdAssigneObject();
+                expression.Accept(exprVisitor);
+                Emit(OpCodes.Callvirt, prop.GetSetMethod());
             }
         }
 

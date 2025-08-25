@@ -23,7 +23,7 @@ namespace ClrScript.Elements.Expressions
 
         public RootMemberAccessType AccessType { get; set; }
 
-        public PropertyInfo InferredProperty { get; set; }
+        public PropertyInfo ExternalProperty { get; set; }
 
         public MemberRootAccess(Token name)
         {

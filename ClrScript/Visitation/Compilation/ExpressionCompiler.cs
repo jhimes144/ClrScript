@@ -16,6 +16,8 @@ namespace ClrScript.Visitation.Compilation
     {
         readonly CompilationContext _context;
         readonly MethodInfo _objEqualsMethod;
+        readonly ConstructorInfo _clrExcepMessageCstruc = typeof(ClrScriptRuntimeException)
+            .GetConstructor(new[] { typeof(string) });
 
         public ExpressionCompiler(CompilationContext context)
         {
@@ -27,6 +29,8 @@ namespace ClrScript.Visitation.Compilation
 
         public void VisitAssign(Assign expr)
         {
+            var gen = _context.CurrentEnv.Generator;
+
             if (expr.AssignTo is MemberRootAccess rootAccess)
             {
                 if (rootAccess.AccessType == RootMemberAccessType.Variable)
@@ -36,9 +40,36 @@ namespace ClrScript.Visitation.Compilation
                 }
                 else if (rootAccess.AccessType == RootMemberAccessType.External)
                 {
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Ldarg_1);
-                    expr.Expression.Accept(this);
-                    _context.CurrentEnv.Generator.Emit(OpCodes.Callvirt, rootAccess.InferredProperty.GetSetMethod());
+                    if (expr.Expression.InferredType == rootAccess.ExternalProperty.PropertyType)
+                    {
+                        gen.Emit(OpCodes.Ldarg_1);
+                        expr.Expression.Accept(this);
+                        gen.Emit(OpCodes.Callvirt, rootAccess.ExternalProperty.GetSetMethod());
+                    }
+                    else
+                    {
+                        var lblWrongType = gen.DefineLabel();
+                        var lblEnd = gen.DefineLabel();
+
+                        gen.Emit(OpCodes.Ldarg_1);                        // Stack: [instance]
+                        expr.Expression.Accept(this);                     // Stack: [instance, value]
+                        gen.Emit(OpCodes.Isinst, rootAccess.InferredType); // Stack: [instance, cast_result_or_null]
+                        gen.Emit(OpCodes.Dup);                           // Stack: [instance, cast_result, cast_result]
+                        gen.Emit(OpCodes.Brfalse_S, lblWrongType);       // Stack: [instance, cast_result]
+
+                        gen.Emit(OpCodes.Callvirt, rootAccess.ExternalProperty.GetSetMethod());
+                        gen.Emit(OpCodes.Br, lblEnd);
+
+                        gen.MarkLabel(lblWrongType);
+                        gen.Emit(OpCodes.Pop); // pop cast_result (null)
+                        gen.Emit(OpCodes.Pop); // pop instance
+                        gen.Emit(OpCodes.Ldstr, $"Cannot assign to '{rootAccess.ExternalProperty.Name}'. Data is in wrong format. " +
+                            $"Expected '{rootAccess.ExternalProperty.PropertyType.Name}'.");
+                        gen.Emit(OpCodes.Newobj, _clrExcepMessageCstruc);
+                        gen.Emit(OpCodes.Throw);
+
+                        gen.MarkLabel(lblEnd);
+                    }
                 }
                 else
                 {
@@ -351,7 +382,7 @@ namespace ClrScript.Visitation.Compilation
             else if (var.AccessType == RootMemberAccessType.External)
             {
                 _context.CurrentEnv.Generator.Emit(OpCodes.Ldarg_1);
-                _context.CurrentEnv.Generator.Emit(OpCodes.Callvirt, var.InferredProperty.GetGetMethod());
+                _context.CurrentEnv.Generator.Emit(OpCodes.Callvirt, var.ExternalProperty.GetGetMethod());
             }
             else
             {

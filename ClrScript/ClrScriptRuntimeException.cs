@@ -8,6 +8,6 @@ namespace ClrScript
 {
     public class ClrScriptRuntimeException : Exception
     {
-        internal ClrScriptRuntimeException(string message) : base(message) { }
+        public ClrScriptRuntimeException(string message) : base(message) { }
     }
 }

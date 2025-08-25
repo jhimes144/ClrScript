@@ -66,7 +66,7 @@ namespace ClrScript.Visitation
 
                             rootAccess.AccessType = RootMemberAccessType.External;
                             rootAccess.InferredType = prop.Property.PropertyType;
-                            rootAccess.InferredProperty = prop.Property;
+                            rootAccess.ExternalProperty = prop.Property;
                             return;
                         }
                     }
@@ -228,7 +228,7 @@ namespace ClrScript.Visitation
 
                         member.AccessType = RootMemberAccessType.External;
                         member.InferredType = prop.Property.PropertyType;
-                        member.InferredProperty = prop.Property;
+                        member.ExternalProperty = prop.Property;
                         return;
                     }
                 }

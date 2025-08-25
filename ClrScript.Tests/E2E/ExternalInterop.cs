@@ -59,6 +59,28 @@ namespace ClrScript.Tests.E2E
         }
 
         [TestMethod]
+        public void Basic_Prop_Set_Unoptimized()
+        {
+            var testClass = new Mock<ITestInteropClass>();
+
+            testClass.SetupAllProperties();
+
+            var context = ClrScriptContext<ITestInteropClass>.Compile(@"
+                var value = ""hello world"";
+            
+                if (false)
+                {
+                    value = 12;
+                }
+
+                rootStringProp = value;
+            ");
+
+            context.Run(testClass.Object);
+            Assert.AreEqual(testClass.Object.RootStringProp, "hello world");
+        }
+
+        [TestMethod]
         public void Basic_Prop_Set_Wrong_Type()
         {
             var testClass = new Mock<ITestInteropClass>();
