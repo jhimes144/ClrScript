@@ -9,6 +9,21 @@ namespace ClrScript.Interop
 {
     class ExternalTypeAnalyzer
     {
+        static readonly Type[] _supportedNumericInteropTypes =
+        {
+            typeof(int),
+            typeof(long),
+            typeof(short),
+            typeof(uint),
+            typeof(ulong),
+            typeof(ushort),
+            typeof(byte),
+            typeof(sbyte),
+            typeof(float),
+            typeof(double),
+            typeof(decimal)
+        };
+
         readonly Dictionary<string, ExternalType> _externalTypesByRealTypeName 
             = new Dictionary<string, ExternalType>();
 
@@ -166,6 +181,11 @@ namespace ClrScript.Interop
 
             _externalTypesByRealTypeName[type.Name] 
                 = new ExternalType(type.Name, type, methodResults, propResults, fieldResults);
+        }
+
+        public static bool GetIsSupportedNumericInteropType(Type type)
+        {
+            return _supportedNumericInteropTypes.Contains(type);
         }
 
         string getMemberName(string memberName, string nameOverride, bool convertToCamel)

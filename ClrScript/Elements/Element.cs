@@ -13,7 +13,6 @@ namespace ClrScript.Elements
 
         /// <summary>
         /// Simply returns the inferred type if it exists, or system.object if type could not be inferred.
-        /// not be inferred.
         /// </summary>
         /// <returns></returns>
         public Type GetInferredType() => InferredType ?? typeof(object);

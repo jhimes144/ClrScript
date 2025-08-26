@@ -12,6 +12,9 @@ namespace ClrScript.Tests.E2E
     {
         [ClrScriptProperty(ConvertToCamelCase = true)]
         string RootStringProp { get; set; }
+
+        [ClrScriptProperty(ConvertToCamelCase = true)]
+        int RootIntProp { get; set; }
     }
 
     [TestClass]
@@ -78,6 +81,20 @@ namespace ClrScript.Tests.E2E
 
             context.Run(testClass.Object);
             Assert.AreEqual(testClass.Object.RootStringProp, "hello world");
+        }
+
+        [TestMethod]
+        public void Basic_Prop_Set_Double_To_Int()
+        {
+            var testClass = new Mock<ITestInteropClass>();
+             testClass.SetupAllProperties();
+
+            var context = ClrScriptContext<ITestInteropClass>.Compile(@"
+                rootIntProp = 12;
+            ");
+
+            context.Run(testClass.Object);
+            Assert.AreEqual(testClass.Object.RootIntProp, 12);
         }
 
         [TestMethod]

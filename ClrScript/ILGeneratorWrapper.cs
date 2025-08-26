@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 using ClrScript.Elements;
 using ClrScript.Elements.Expressions;
 using ClrScript.Visitation;
+using System.Collections;
+using ClrScript.Interop;
 
 namespace ClrScript
 {
@@ -41,6 +43,9 @@ namespace ClrScript
 
     class ILGeneratorWrapper
     {
+        readonly ConstructorInfo _clrExcepMessageCstruc = typeof(ClrScriptRuntimeException)
+            .GetConstructor(new[] { typeof(string) });
+
         readonly ILGenerator _ilGenerator;
         readonly List<ILOpDisplay> _instructionsRendered = new List<ILOpDisplay>();
 
@@ -231,13 +236,17 @@ namespace ClrScript
             var currentElementT = currentElement?.GetInferredType() ?? typeof(object);
             var previousElementT = previousElement?.GetInferredType() ?? typeof(object);
 
-            if (!currentElementT.IsValueType && previousElementT.IsValueType)
+            if (currentElementT == typeof(object) && previousElementT.IsValueType)
             {
                 Emit(OpCodes.Box, previousElement.GetInferredType());
             }
+            else if (currentElementT != typeof(object) && previousElementT.IsValueType)
+            {
+                throw new Exception("Cannot box value type, not assignable to current element type.");
+            }
         }
 
-        public void EmitDynamicToTypedAssign(Expr expression, IExpressionVisitor exprVisitor,
+        public void EmitToExternalAssign(Expr expression, IExpressionVisitor exprVisitor,
             Action emitLdAssigneObject, MemberInfo member)
         {
             Type memberAssignType;
@@ -246,12 +255,12 @@ namespace ClrScript
 
             if (member is PropertyInfo propP)
             {
-                memberAssignType = prop.PropertyType;
+                memberAssignType = propP.PropertyType;
                 prop = propP;
             }
             else if (member is FieldInfo fieldP)
             {
-                memberAssignType = field.FieldType;
+                memberAssignType = fieldP.FieldType;
                 field = fieldP;
             }
             else
@@ -259,12 +268,124 @@ namespace ClrScript
                 throw new NotSupportedException("Invalid member type, must be field or property.");
             }
 
-            if (expression.InferredType == memberAssignType)
+            if (expression.GetInferredType() == memberAssignType)
             {
-                // direct assign
+                // direct assign, easy and fast
                 emitLdAssigneObject();
                 expression.Accept(exprVisitor);
-                Emit(OpCodes.Callvirt, prop.GetSetMethod());
+                
+                if (prop != null)
+                {
+                    Emit(OpCodes.Callvirt, prop.GetSetMethod());
+                }
+                else
+                {
+                    Emit(OpCodes.Stfld, field);
+                }
+            }
+            else
+            {
+                if (expression.GetInferredType() == typeof(double)
+                    && memberAssignType.IsValueType)
+                {
+                    emitLdAssigneObject();
+                    expression.Accept(exprVisitor);
+                    EmitStackDoubleToNumericValueTypeConversion(memberAssignType);
+
+                    if (prop != null)
+                    {
+                        Emit(OpCodes.Callvirt, prop.GetSetMethod());
+                    }
+                    else
+                    {
+                        Emit(OpCodes.Stfld, field);
+                    }
+                }
+                else if (!expression.GetInferredType().IsValueType)
+                {
+                    emitLdAssigneObject();
+                    expression.Accept(exprVisitor);
+
+                    if (InteropHelpers.GetIsSupportedNumericInteropType(memberAssignType))
+                    {
+                        var failureLbl = DefineLabel();
+                        Emit(OpCodes.Dup); // Stack: [instance, value, value]
+                        Emit(OpCodes.Call, typeof(object).GetMethod("GetType")); // Stack: [instance, value, type]
+                        Emit(OpCodes.Ldtoken, typeof(double));
+                        Emit(OpCodes.Call, typeof(Type).GetMethod("op_Equality", new Type[] { typeof(Type), typeof(Type) }));
+                        Emit(OpCodes.Brfalse_S, failureLbl);
+                        // Stack: [instance, value]
+                        Emit(OpCodes.Unbox_Any, typeof(double));
+                        EmitStackDoubleToNumericValueTypeConversion(memberAssignType);
+
+                        if (prop != null)
+                        {
+                            Emit(OpCodes.Callvirt, prop.GetSetMethod());
+                        }
+                        else
+                        {
+                            Emit(OpCodes.Stfld, field);
+                        }
+                    }
+                    else if (memberAssignType == typeof(bool))
+                    {
+
+                    }
+                }
+                else
+                {
+                    // emit exception always. but can this case even happen?
+                }
+            }
+        }
+
+        public void EmitStackDoubleToNumericValueTypeConversion(Type targetType)
+        {
+            if (targetType == typeof(int))
+            {
+                Emit(OpCodes.Conv_I4);
+            }
+            else if (targetType == typeof(long))
+            {
+                Emit(OpCodes.Conv_I8);
+            }
+            else if (targetType == typeof(short))
+            {
+                Emit(OpCodes.Conv_I2);
+            }
+            else if (targetType == typeof(uint))
+            {
+                Emit(OpCodes.Conv_U4);
+            }
+            else if (targetType == typeof(ulong))
+            {
+                Emit(OpCodes.Conv_U8);
+            }
+            else if (targetType == typeof(ushort))
+            {
+                Emit(OpCodes.Conv_U2);
+            }
+            else if (targetType == typeof(byte))
+            {
+                Emit(OpCodes.Conv_U1);
+            }
+            else if (targetType == typeof(sbyte))
+            {
+                Emit(OpCodes.Conv_I1);
+            }
+            else if (targetType == typeof(float))
+            {
+                Emit(OpCodes.Conv_R4);
+            }
+            else if (targetType == typeof(decimal))
+            {
+                Emit(OpCodes.Call, typeof(Convert).GetMethod("ToDecimal", new[] { typeof(double) }));
+            }
+            else
+            {
+                // this should not happen, external type analyzer should throw for it.
+                throw new NotSupportedException
+                    ($"Unsupported target type for numeric conversion: {targetType.Name}");
             }
         }
 
