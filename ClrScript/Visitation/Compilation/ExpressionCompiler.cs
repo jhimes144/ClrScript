@@ -34,14 +34,14 @@ namespace ClrScript.Visitation.Compilation
                 if (rootAccess.AccessType == RootMemberAccessType.Variable)
                 {
                     expr.Expression.Accept(this);
-                    gen.EmitBoxIfNeeded(expr.AssignTo, expr.Expression);
+                    gen.EmitBoxIfNeeded(expr.AssignTo, expr.Expression, _context.ShapeTable);
 
                     _context.CurrentEnv.VariableEmitStoreFromEvalStack(rootAccess.Name.Value);
                 }
                 else if (rootAccess.AccessType == RootMemberAccessType.External)
                 {
                     gen.EmitToExternalAssign(expr.Expression, this, () => gen.Emit(OpCodes.Ldarg_1),
-                        rootAccess.ExternalProperty);
+                        rootAccess.ExternalProperty, _context.ShapeTable);
                 }
                 else
                 {
@@ -56,7 +56,8 @@ namespace ClrScript.Visitation.Compilation
                 generator.Emit(OpCodes.Ldstr, memberAccess.Name.Value);
                 expr.Expression.Accept(this);
 
-                if (memberAccess.Expr.InferredType == typeof(ClrScriptObject))
+                var memberExprShapeInfo = _context.ShapeTable.GetShape(memberAccess.Expr);
+                if (memberExprShapeInfo?.InferredType == typeof(ClrScriptObject))
                 {
                     generator.Emit(OpCodes.Callvirt, typeof(ClrScriptObject)
                             .GetMethod(nameof(ClrScriptObject.Set)));
@@ -72,20 +73,23 @@ namespace ClrScript.Visitation.Compilation
         public void VisitBinary(Binary expr)
         {
             var gen = _context.CurrentEnv.Generator;
+            var shapeInfo = _context.ShapeTable.GetShape(expr);
 
             expr.Left.Accept(this);
-            gen.EmitBoxIfNeeded(expr, expr.Left);
+            gen.EmitBoxIfNeeded(expr, expr.Left, _context.ShapeTable);
             expr.Right.Accept(this);
-            gen.EmitBoxIfNeeded(expr, expr.Right);
+            gen.EmitBoxIfNeeded(expr, expr.Right, _context.ShapeTable);
+
+            var inferredType = shapeInfo?.InferredType;
 
             switch (expr.Op.Type)
             {
                 case Lexer.TokenType.Plus:
-                    if (expr.InferredType == typeof(double))
+                    if (inferredType == typeof(double))
                     {
                         gen.Emit(OpCodes.Add_Ovf);
                     }
-                    else if (expr.InferredType == typeof(string))
+                    else if (inferredType == typeof(string))
                     {
                         gen.EmitCall(OpCodes.Call, typeof(string)
                             .GetMethod(nameof(string.Concat)), null);
@@ -97,7 +101,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     break;
                 case Lexer.TokenType.Minus:
-                    if (expr.InferredType == typeof(double))
+                    if (inferredType == typeof(double))
                     {
                         gen.Emit(OpCodes.Sub_Ovf);
                     }
@@ -108,7 +112,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     break;
                 case Lexer.TokenType.Multiply:
-                    if (expr.InferredType == typeof(double))
+                    if (inferredType == typeof(double))
                     {
                         gen.Emit(OpCodes.Mul_Ovf);
                     }
@@ -119,7 +123,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     break;
                 case Lexer.TokenType.Divide:
-                    if (expr.InferredType == typeof(double))
+                    if (inferredType == typeof(double))
                     {
                         gen.Emit(OpCodes.Div);
                     }
@@ -130,7 +134,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     break;
                 case Lexer.TokenType.EqualEqual:
-                    if (expr.InferredType == typeof(double))
+                    if (inferredType == typeof(double))
                     {
                         gen.Emit(OpCodes.Ceq);
                     }
@@ -141,7 +145,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     break;
                 case Lexer.TokenType.BangEqual:
-                    if (expr.InferredType == typeof(double))
+                    if (inferredType == typeof(double))
                     {
                         gen.Emit(OpCodes.Ceq);
                         gen.Emit(OpCodes.Ldc_I4_0);
@@ -156,7 +160,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     break;
                 case Lexer.TokenType.GreaterThan:
-                    if (expr.InferredType == typeof(double))
+                    if (inferredType == typeof(double))
                     {
                         gen.Emit(OpCodes.Cgt);
                     }
@@ -167,7 +171,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     break;
                 case Lexer.TokenType.LessThan:
-                    if (expr.InferredType == typeof(double))
+                    if (inferredType == typeof(double))
                     {
                         _context.CurrentEnv.Generator.Emit(OpCodes.Clt);
                     }
@@ -178,7 +182,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     break;
                 case Lexer.TokenType.GreaterThanOrEqual:
-                    if (expr.InferredType == typeof(double))
+                    if (inferredType == typeof(double))
                     {
                         _context.CurrentEnv.Generator.Emit(OpCodes.Clt);
                         _context.CurrentEnv.Generator.Emit(OpCodes.Ldc_I4_0);
@@ -191,7 +195,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     break;
                 case Lexer.TokenType.LessThanOrEqual:
-                    if (expr.InferredType == typeof(double))
+                    if (inferredType == typeof(double))
                     {
                         _context.CurrentEnv.Generator.Emit(OpCodes.Cgt);
                         _context.CurrentEnv.Generator.Emit(OpCodes.Ldc_I4_0);
@@ -288,8 +292,9 @@ namespace ClrScript.Visitation.Compilation
         {
             memberAccess.Expr.Accept(this);
             var generator = _context.CurrentEnv.Generator;
+            var exprShapeInfo = _context.ShapeTable.GetShape(memberAccess.Expr);
 
-            if (memberAccess.Expr.InferredType == typeof(ClrScriptObject))
+            if (exprShapeInfo?.InferredType == typeof(ClrScriptObject))
             {
                 generator.Emit(OpCodes.Ldstr, memberAccess.Name.Value);
                 generator.Emit(OpCodes.Callvirt, typeof(ClrScriptObject)
@@ -314,8 +319,16 @@ namespace ClrScript.Visitation.Compilation
                 generator.Emit(OpCodes.Ldstr, key.Value);
 
                 value.Accept(this);
+                var valueShape = _context.ShapeTable.GetShape(value);
+
+                if (_context.ShapeTable.GetShape(value).InferredType?.IsValueType ?? false)
+                {
+                    generator.Emit(OpCodes.Box, valueShape.InferredType);
+                }
+
                 generator.Emit(OpCodes.Callvirt, typeof(ClrScriptObject)
                             .GetMethod(nameof(ClrScriptObject.Set)));
+
             }
         }
 

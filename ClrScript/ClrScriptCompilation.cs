@@ -42,6 +42,7 @@ namespace ClrScript
 
             var compileContext = new CompilationContext(iR.Settings,
                 iR.SymbolTable,
+                iR.ShapeTable,
                 iR.ExternalTypeAnalyzer,
                 defaultClrScript);
 

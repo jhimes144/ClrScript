@@ -20,6 +20,8 @@ namespace ClrScript.Visitation.Compilation
 
         public SymbolTable SymbolTable { get; }
 
+        public ShapeTable ShapeTable { get; }
+
         public TypeBuilder RootClrScriptTypeBuilder { get; }
 
         public ClrScriptRoot Root { get; }
@@ -32,11 +34,13 @@ namespace ClrScript.Visitation.Compilation
 
         public CompilationContext(ClrScriptCompilationSettings settings,
             SymbolTable symbolTable,
+            ShapeTable shapeTable,
             ExternalTypeAnalyzer externalTypes,
             TypeBuilder rootType)
         {
             RootClrScriptTypeBuilder = rootType;
 
+            ShapeTable = shapeTable;
             SymbolTable = symbolTable;
             ExternalTypes = externalTypes;
             Root = new ClrScriptRoot(this);

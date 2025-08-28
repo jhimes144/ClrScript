@@ -24,6 +24,7 @@ namespace ClrScript
 
         internal IReadOnlyList<Stmt> Statements { get; }
         internal SymbolTable SymbolTable { get; }
+        internal ShapeTable ShapeTable { get; }
         internal ClrScriptCompilationSettings Settings { get; }
         internal ExternalTypeAnalyzer ExternalTypeAnalyzer { get; }
 
@@ -31,6 +32,7 @@ namespace ClrScript
              IReadOnlyList<Stmt> statements,
             IReadOnlyList<ClrScriptCompileError> warnings,
             SymbolTable symbolTable,
+            ShapeTable shapeTable,
             ClrScriptCompilationSettings settings,
             ExternalTypeAnalyzer analyzer)
         {
@@ -38,6 +40,7 @@ namespace ClrScript
             Warnings = warnings;
             Statements = statements;
             SymbolTable = symbolTable;
+            ShapeTable = shapeTable;
             Settings = settings;
             ExternalTypeAnalyzer = analyzer;
         }
@@ -69,7 +72,8 @@ namespace ClrScript
             var parseResult = parser.Parse();
 
             var symbolTable = new SymbolTable();
-            var analyzer = new AnalyzerVisitor(symbolTable, externalTypeAnalyzer, allErrors);
+            var shapeTable = new ShapeTable();
+            var analyzer = new AnalyzerVisitor(symbolTable, externalTypeAnalyzer, shapeTable, allErrors);
 
             foreach (var statement in parseResult)
             {
@@ -79,7 +83,8 @@ namespace ClrScript
             var errors = allErrors.Where(e => !e.IsWarning).Reverse().ToArray();
             var warnings = allErrors.Where(e => e.IsWarning).Reverse().ToArray();
 
-            return new ClrScriptIR<TIn>(errors, parseResult, warnings, symbolTable, settings, externalTypeAnalyzer);
+            return new ClrScriptIR<TIn>(errors, parseResult, warnings, symbolTable, shapeTable,
+                settings, externalTypeAnalyzer);
         }
     }
 }

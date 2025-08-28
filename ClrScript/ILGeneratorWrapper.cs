@@ -231,23 +231,26 @@ namespace ClrScript
             _ilGenerator.UsingNamespace(usingNamespace);
         }
 
-        public void EmitBoxIfNeeded(Element currentElement, Element previousElement)
+        public void EmitBoxIfNeeded(Element currentElement, Element previousElement, ShapeTable shapeTable)
         {
-            var currentElementT = currentElement?.GetInferredType() ?? typeof(object);
-            var previousElementT = previousElement?.GetInferredType() ?? typeof(object);
+            var currentShapeInfo = shapeTable.GetShape(currentElement);
+            var previousShapeInfo = shapeTable.GetShape(previousElement);
+            
+            var currentElementT = currentShapeInfo?.InferredType ?? typeof(object);
+            var previousElementT = previousShapeInfo?.InferredType ?? typeof(object);
 
             if (currentElementT == typeof(object) && previousElementT.IsValueType)
             {
-                Emit(OpCodes.Box, previousElement.GetInferredType());
+                Emit(OpCodes.Box, previousElementT);
             }
-            else if (currentElementT != typeof(object) && previousElementT.IsValueType)
+            else if (!currentElementT.IsValueType && previousElementT.IsValueType)
             {
                 throw new Exception("Cannot box value type, not assignable to current element type.");
             }
         }
 
         public void EmitToExternalAssign(Expr expression, IExpressionVisitor exprVisitor,
-            Action emitLdAssigneObject, MemberInfo member)
+            Action emitLdAssigneObject, MemberInfo member, ShapeTable shapeTable)
         {
             Type memberAssignType;
             PropertyInfo prop = null;
@@ -268,12 +271,16 @@ namespace ClrScript
                 throw new NotSupportedException("Invalid member type, must be field or property.");
             }
 
-            if (expression.GetInferredType() == memberAssignType)
+            var memberAssignIsSupportedNum = InteropHelpers.GetIsSupportedNumericInteropType(memberAssignType);
+            var expressionShapeInfo = shapeTable.GetShape(expression);
+            var expressionType = expressionShapeInfo?.InferredType ?? typeof(object);
+
+            if (expressionType == memberAssignType)
             {
                 // direct assign, easy and fast
                 emitLdAssigneObject();
                 expression.Accept(exprVisitor);
-                
+
                 if (prop != null)
                 {
                     Emit(OpCodes.Callvirt, prop.GetSetMethod());
@@ -285,8 +292,7 @@ namespace ClrScript
             }
             else
             {
-                if (expression.GetInferredType() == typeof(double)
-                    && memberAssignType.IsValueType)
+                if (expressionType == typeof(double) && memberAssignIsSupportedNum)
                 {
                     emitLdAssigneObject();
                     expression.Accept(exprVisitor);
@@ -301,22 +307,26 @@ namespace ClrScript
                         Emit(OpCodes.Stfld, field);
                     }
                 }
-                else if (!expression.GetInferredType().IsValueType)
+                else if (!expressionType.IsValueType)
                 {
+                    var lblEnd = DefineLabel();
+                    var lblFailure = DefineLabel();
+
                     emitLdAssigneObject();
                     expression.Accept(exprVisitor);
 
-                    if (InteropHelpers.GetIsSupportedNumericInteropType(memberAssignType))
+                    if (memberAssignIsSupportedNum)
                     {
-                        var failureLbl = DefineLabel();
+                        // Stack: [instance, value]
                         Emit(OpCodes.Dup); // Stack: [instance, value, value]
                         Emit(OpCodes.Call, typeof(object).GetMethod("GetType")); // Stack: [instance, value, type]
-                        Emit(OpCodes.Ldtoken, typeof(double));
-                        Emit(OpCodes.Call, typeof(Type).GetMethod("op_Equality", new Type[] { typeof(Type), typeof(Type) }));
-                        Emit(OpCodes.Brfalse_S, failureLbl);
-                        // Stack: [instance, value]
-                        Emit(OpCodes.Unbox_Any, typeof(double));
-                        EmitStackDoubleToNumericValueTypeConversion(memberAssignType);
+                        Emit(OpCodes.Ldtoken, typeof(double)); // Stack: [instance, value, type, token]
+                        Emit(OpCodes.Call, typeof(Type).GetMethod("GetTypeFromHandle", new[] { typeof(RuntimeTypeHandle) })); // Stack: [instance, value, type, type]
+                        Emit(OpCodes.Call, typeof(Type).GetMethod("op_Equality", new Type[] { typeof(Type), typeof(Type) })); // Stack: [instance, value, bool]
+                        Emit(OpCodes.Brfalse_S, lblFailure); // Stack: [instance, value]
+
+                        Emit(OpCodes.Unbox_Any, typeof(double)); // Stack: [instance, double]
+                        EmitStackDoubleToNumericValueTypeConversion(memberAssignType); // Stack: [instance, converted_value]
 
                         if (prop != null)
                         {
@@ -326,15 +336,56 @@ namespace ClrScript
                         {
                             Emit(OpCodes.Stfld, field);
                         }
-                    }
-                    else if (memberAssignType == typeof(bool))
-                    {
 
+                        Emit(OpCodes.Br, lblEnd);
                     }
+                    else
+                    {
+                        // Stack: [instance, value]
+                        Emit(OpCodes.Dup); // Stack: [instance, value, value]
+                        Emit(OpCodes.Call, typeof(object).GetMethod("GetType")); // Stack: [instance, value, type]
+                        Emit(OpCodes.Ldtoken, memberAssignType); // Stack: [instance, value, type, token]
+                        Emit(OpCodes.Call, typeof(Type).GetMethod("GetTypeFromHandle", new[] { typeof(RuntimeTypeHandle) })); // Stack: [instance, value, type, type]
+                        Emit(OpCodes.Call, typeof(Type).GetMethod("op_Equality", new Type[] { typeof(Type), typeof(Type) })); // Stack: [instance, value, bool]
+                        Emit(OpCodes.Brfalse_S, lblFailure); // Stack: [instance, value]
+
+                        if (memberAssignType.IsValueType)
+                        {
+                            Emit(OpCodes.Unbox_Any, memberAssignType); // Stack: [instance, unboxed_value]
+                        }
+                        else
+                        {
+                            Emit(OpCodes.Castclass, memberAssignType); // Stack: [instance, cast_value]
+                        }
+
+                        if (prop != null)
+                        {
+                            Emit(OpCodes.Callvirt, prop.GetSetMethod());
+                        } 
+                        else
+                        {
+                            Emit(OpCodes.Stfld, field);
+                        }
+
+                        Emit(OpCodes.Br, lblEnd);
+                    }
+
+                    MarkLabel(lblFailure);
+                    // Stack: [instance, value]
+                    Emit(OpCodes.Pop); // pop value - Stack: [instance]
+                    Emit(OpCodes.Pop); // pop instance - Stack: []
+                    Emit(OpCodes.Ldstr, $"Cannot assign to '{member.Name}'. Data is in wrong format. " +
+                        $"Expected '{memberAssignType.Name}'.");
+                    Emit(OpCodes.Newobj, _clrExcepMessageCstruc);
+                    Emit(OpCodes.Throw);
+
+                    MarkLabel(lblEnd);
                 }
                 else
                 {
-                    // emit exception always. but can this case even happen?
+                    Emit(OpCodes.Ldstr, $"Cannot assign value of type '{expressionType.Name}' to '{member.Name}' of type '{memberAssignType.Name}'.");
+                    Emit(OpCodes.Newobj, _clrExcepMessageCstruc);
+                    Emit(OpCodes.Throw);
                 }
             }
         }

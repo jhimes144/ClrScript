@@ -15,22 +15,25 @@ namespace ClrScript.Visitation
         readonly SymbolTable _symbolTable;
         readonly List<ClrScriptCompileError> _errors;
         readonly ExternalTypeAnalyzer _externalTypeAnalyzer;
+        readonly ShapeTable _shapeTable;
 
         public AnalyzerVisitor(SymbolTable symbolTable,
             ExternalTypeAnalyzer externalTypeAnalyzer,
+            ShapeTable shapeTable,
             List<ClrScriptCompileError> errors)
         {
             _errors = errors;
+            _shapeTable = shapeTable;
             _symbolTable = symbolTable;
             _externalTypeAnalyzer = externalTypeAnalyzer;
             _symbolTable.BeginScope(ScopeKind.Root);
         }
 
-        public void VisitAssign(Assign expr)
+        public void VisitAssign(Assign assignExpr)
         {
-            if (expr.AssignTo is MemberRootAccess rootAccess)
+            if (assignExpr.AssignTo is MemberRootAccess rootAccess)
             {
-                expr.Expression.Accept(this);
+                assignExpr.Expression.Accept(this);
 
                 var existingSymbol = _symbolTable.CurrentScope.FindSymbolGoingUp
                     (rootAccess.Name.Value, out _);
@@ -39,15 +42,11 @@ namespace ClrScript.Visitation
                 {
                     // check if our assign does not match the declaration variable inferred type.
                     var declaration = existingSymbol.Element as VarStmt;
-
-                    if (declaration.InferredType != expr.Expression.InferredType)
-                    {
-                        // we no longer can know (if we ever did) the inferred type of the variable.
-                        declaration.InferredType = null;
-                    }
+                    var derivedShape = _shapeTable.DeriveShape(declaration, assignExpr.Expression);
+                    _shapeTable.SetShape(declaration, derivedShape, true);
 
                     rootAccess.AccessType = RootMemberAccessType.Variable;
-                    rootAccess.InferredType = declaration.InferredType;
+                    _shapeTable.SetShape(rootAccess, derivedShape);
                     return;
                 }
                 else
@@ -65,21 +64,35 @@ namespace ClrScript.Visitation
                             }
 
                             rootAccess.AccessType = RootMemberAccessType.External;
-                            rootAccess.InferredType = prop.Property.PropertyType;
+                            _shapeTable.SetShape(rootAccess, new BasicShapeInfo(prop.Property.PropertyType));
                             rootAccess.ExternalProperty = prop.Property;
                             return;
                         }
                     }
                 }
             }
-            else if (expr.AssignTo is MemberAccess memberAccess)
+            else if (assignExpr.AssignTo is MemberAccess assignToMemberAccess)
             {
-                memberAccess.Expr.Accept(this);
-                expr.Expression.Accept(this);
+                assignToMemberAccess.Expr.Accept(this);
+                assignExpr.Expression.Accept(this);
+
+                var expressionShape = _shapeTable.GetShape(assignExpr.Expression);
+                var assigneeShape = _shapeTable.GetShape(assignToMemberAccess.Expr);
+
+                if (assigneeShape is ClrScriptObjectShapeInfo clrObjectAssigneeShape)
+                {
+                    var propName = assignToMemberAccess.Name.Value;
+                    var propShape = clrObjectAssigneeShape.ShapeInfoByPropName
+                        .GetValueOrDefault(propName);
+
+                    var derivedPropShape = _shapeTable.DeriveShape(propShape, expressionShape);
+                    clrObjectAssigneeShape.ShapeInfoByPropName[propName] = derivedPropShape;
+                }
+
                 return;
             }
 
-            _errors.Add(new ClrScriptCompileError($"The left hand of an assignment must be variable, property, or indexer.", expr));
+            _errors.Add(new ClrScriptCompileError($"The left hand of an assignment must be variable, property, or indexer.", assignExpr));
         }
 
         public void VisitBinary(Binary expr)
@@ -87,10 +100,8 @@ namespace ClrScript.Visitation
             expr.Left.Accept(this);
             expr.Right.Accept(this);
 
-            if (expr.Left.InferredType == expr.Right.InferredType)
-            {
-                expr.InferredType = expr.Left.InferredType;
-            }
+            var shape = _shapeTable.DeriveShape(expr.Left, expr.Right);
+            _shapeTable.SetShape(expr, shape);
         }
 
         public void VisitBlock(Block block)
@@ -159,7 +170,8 @@ namespace ClrScript.Visitation
                 return;
             }
 
-            expr.InferredType = expr.Value.GetType();
+            _shapeTable.SetShape(expr, new BasicShapeInfo
+                (expr.Value.GetType()));
         }
 
         public void VisitLogical(Logical logical)
@@ -167,15 +179,22 @@ namespace ClrScript.Visitation
             logical.Left.Accept(this);
             logical.Right.Accept(this);
 
-            if (logical.Left.InferredType == logical.Right.InferredType)
-            {
-                logical.InferredType = logical.Left.InferredType;
-            }
+            var derivedShape = _shapeTable.DeriveShape(logical.Left, logical.Right);
+            _shapeTable.SetShape(logical, derivedShape);
         }
 
         public void VisitObjectLiteral(ObjectLiteral objLiteral)
         {
-            objLiteral.InferredType = typeof(ClrScriptObject);
+            var shapeInfoByPropName = new Dictionary<string, ShapeInfo>();
+
+            foreach (var (key, value) in objLiteral.Properties)
+            {
+                value.Accept(this);
+                var propShape = _shapeTable.GetShape(value);
+                shapeInfoByPropName[key.Value] = propShape;
+            }
+
+            _shapeTable.SetShape(objLiteral, new ClrScriptObjectShapeInfo(shapeInfoByPropName));
         }
 
         public void VisitMemberAccess(MemberAccess memberAccess)
@@ -191,7 +210,8 @@ namespace ClrScript.Visitation
         public void VisitUnary(Unary expr)
         {
             expr.Right.Accept(this);
-            expr.InferredType = expr.Right.InferredType;
+            var innerShape = _shapeTable.GetShape(expr.Right);
+            _shapeTable.SetShape(expr, innerShape);
         }
 
         public void VisitMemberRootAccess(MemberRootAccess member)
@@ -204,7 +224,7 @@ namespace ClrScript.Visitation
                 if (existingSymbol is VariableSymbol sym)
                 {
                     var stmt = (VarStmt)sym.Element;
-                    member.InferredType = stmt.InferredType;
+                    _shapeTable.SetShape(member, _shapeTable.GetShape(stmt));
                     member.AccessType = RootMemberAccessType.Variable;
                     return;
                 }
@@ -227,7 +247,7 @@ namespace ClrScript.Visitation
                         }
 
                         member.AccessType = RootMemberAccessType.External;
-                        member.InferredType = prop.Property.PropertyType;
+                        _shapeTable.SetShape(member, new BasicShapeInfo(prop.Property.PropertyType));
                         member.ExternalProperty = prop.Property;
                         return;
                     }
@@ -276,7 +296,7 @@ namespace ClrScript.Visitation
             _symbolTable.SetSymbolFor(varStmt, symbol);
 
             varStmt.Initializer.Accept(this);
-            varStmt.InferredType = varStmt.Initializer.InferredType;
+            _shapeTable.SetShape(varStmt, _shapeTable.GetShape(varStmt.Initializer));
         }
 
         public void VisitWhileStmt(WhileStmt whileStmt)

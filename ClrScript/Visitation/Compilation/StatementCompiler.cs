@@ -58,9 +58,12 @@ namespace ClrScript.Visitation.Compilation
         {
             returnStmt.Expression.Accept(_context.ExpressionCompiler);
 
-            if (returnStmt.Expression.InferredType?.IsValueType ?? false)
+            var expressionShapeInfo = _context.ShapeTable.GetShape(returnStmt.Expression);
+            var inferredType = expressionShapeInfo?.InferredType;
+            
+            if (inferredType?.IsValueType ?? false)
             {
-                _context.CurrentEnv.Generator.Emit(OpCodes.Box, returnStmt.Expression.InferredType);
+                _context.CurrentEnv.Generator.Emit(OpCodes.Box, inferredType);
             }
             
             _context.CurrentEnv.Generator.Emit(OpCodes.Ret);
@@ -69,11 +72,12 @@ namespace ClrScript.Visitation.Compilation
 
         public void VisitVarStmt(VarStmt varStmt)
         {
-            var type = varStmt.GetInferredType();
+            var varShapeInfo = _context.ShapeTable.GetShape(varStmt);
+            var type = varShapeInfo?.InferredType ?? typeof(object);
             _context.CurrentEnv.DeclareVariable(varStmt.Name.Value, type);
 
             varStmt.Initializer.Accept(_context.ExpressionCompiler);
-            _context.CurrentEnv.Generator.EmitBoxIfNeeded(varStmt, varStmt.Initializer);
+            _context.CurrentEnv.Generator.EmitBoxIfNeeded(varStmt, varStmt.Initializer, _context.ShapeTable);
 
             _context.CurrentEnv.VariableEmitStoreFromEvalStack(varStmt.Name.Value);
         }

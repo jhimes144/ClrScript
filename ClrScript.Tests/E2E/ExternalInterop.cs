@@ -15,6 +15,9 @@ namespace ClrScript.Tests.E2E
 
         [ClrScriptProperty(ConvertToCamelCase = true)]
         int RootIntProp { get; set; }
+
+        [ClrScriptProperty(ConvertToCamelCase = true)]
+        bool RootBoolProp { get; set; }
     }
 
     [TestClass]
@@ -62,7 +65,7 @@ namespace ClrScript.Tests.E2E
         }
 
         [TestMethod]
-        public void Basic_Prop_Set_Unoptimized()
+        public void Basic_Prop_Set_String_Unoptimized()
         {
             var testClass = new Mock<ITestInteropClass>();
 
@@ -84,6 +87,28 @@ namespace ClrScript.Tests.E2E
         }
 
         [TestMethod]
+        public void Basic_Prop_Set_Bool_Unoptimized()
+        {
+            var testClass = new Mock<ITestInteropClass>();
+
+            testClass.SetupAllProperties();
+
+            var context = ClrScriptContext<ITestInteropClass>.Compile(@"
+                var value = true;
+            
+                if (false)
+                {
+                    value = 12;
+                }
+
+                rootBoolProp = value;
+            ");
+
+            context.Run(testClass.Object);
+            Assert.AreEqual(testClass.Object.RootBoolProp, true);
+        }
+
+        [TestMethod]
         public void Basic_Prop_Set_Double_To_Int()
         {
             var testClass = new Mock<ITestInteropClass>();
@@ -91,6 +116,27 @@ namespace ClrScript.Tests.E2E
 
             var context = ClrScriptContext<ITestInteropClass>.Compile(@"
                 rootIntProp = 12;
+            ");
+
+            context.Run(testClass.Object);
+            Assert.AreEqual(testClass.Object.RootIntProp, 12);
+        }
+
+        [TestMethod]
+        public void Basic_Prop_Set_Double_To_Int_Unoptimized()
+        {
+            var testClass = new Mock<ITestInteropClass>();
+            testClass.SetupAllProperties();
+
+            var context = ClrScriptContext<ITestInteropClass>.Compile(@"
+                var value = 12;
+
+                if (false)
+                {
+                    value = ""hello world"";
+                }
+
+                rootIntProp = value;
             ");
 
             context.Run(testClass.Object);
@@ -108,8 +154,8 @@ namespace ClrScript.Tests.E2E
                 rootStringProp = 12;
             ");
 
-            context.Run(testClass.Object);
-            Assert.AreEqual(testClass.Object.RootStringProp, "hello world");
+            Assert.ThrowsException<ClrScriptRuntimeException>
+                (() => context.Run(testClass.Object));
         }
     }
 }
