@@ -4,6 +4,7 @@ using ClrScript.Interop;
 using ClrScript.Runtime.Builtins;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -33,16 +34,15 @@ namespace ClrScript.Visitation
         {
             if (assignExpr.AssignTo is MemberRootAccess rootAccess)
             {
-                assignExpr.Expression.Accept(this);
+                assignExpr.ExprAssignValue.Accept(this);
 
                 var existingSymbol = _symbolTable.CurrentScope.FindSymbolGoingUp
                     (rootAccess.Name.Value, out _);
 
                 if (existingSymbol != null)
                 {
-                    // check if our assign does not match the declaration variable inferred type.
                     var declaration = existingSymbol.Element as VarStmt;
-                    var derivedShape = _shapeTable.DeriveShape(declaration, assignExpr.Expression);
+                    var derivedShape = _shapeTable.DeriveShape(declaration, assignExpr.ExprAssignValue);
                     _shapeTable.SetShape(declaration, derivedShape, true);
 
                     rootAccess.AccessType = RootMemberAccessType.Variable;
@@ -64,8 +64,7 @@ namespace ClrScript.Visitation
                             }
 
                             rootAccess.AccessType = RootMemberAccessType.External;
-                            _shapeTable.SetShape(rootAccess, new BasicShapeInfo(prop.Property.PropertyType));
-                            rootAccess.ExternalProperty = prop.Property;
+                            _shapeTable.SetShape(rootAccess, new TypeShape(prop.Property.PropertyType));
                             return;
                         }
                     }
@@ -74,19 +73,27 @@ namespace ClrScript.Visitation
             else if (assignExpr.AssignTo is MemberAccess assignToMemberAccess)
             {
                 assignToMemberAccess.Expr.Accept(this);
-                assignExpr.Expression.Accept(this);
+                assignExpr.ExprAssignValue.Accept(this);
 
-                var expressionShape = _shapeTable.GetShape(assignExpr.Expression);
+                var expressionShape = _shapeTable.GetShape(assignExpr.ExprAssignValue);
                 var assigneeShape = _shapeTable.GetShape(assignToMemberAccess.Expr);
 
-                if (assigneeShape is ClrScriptObjectShapeInfo clrObjectAssigneeShape)
+                if (assigneeShape is ClrScriptObjectShape clrObjectAssigneeShape)
                 {
                     var propName = assignToMemberAccess.Name.Value;
                     var propShape = clrObjectAssigneeShape.ShapeInfoByPropName
                         .GetValueOrDefault(propName);
 
-                    var derivedPropShape = _shapeTable.DeriveShape(propShape, expressionShape);
-                    clrObjectAssigneeShape.ShapeInfoByPropName[propName] = derivedPropShape;
+                    if (propShape != null)
+                    {
+                        var derivedPropShape = _shapeTable.DeriveShape(propShape, expressionShape);
+                        clrObjectAssigneeShape.ShapeInfoByPropName[propName] = derivedPropShape;
+                    }
+                    else
+                    {
+                        // property has never been assigned.
+                        clrObjectAssigneeShape.ShapeInfoByPropName[propName] = expressionShape;
+                    }
                 }
 
                 return;
@@ -130,7 +137,12 @@ namespace ClrScript.Visitation
 
         public void VisitCall(Call call)
         {
+            call.Callee.Accept(this);
 
+            foreach (var arg in call.Arguments)
+            {
+                arg.Accept(this);
+            }
         }
 
         public void VisitExprStmt(ExpressionStmt exprStmt)
@@ -170,7 +182,7 @@ namespace ClrScript.Visitation
                 return;
             }
 
-            _shapeTable.SetShape(expr, new BasicShapeInfo
+            _shapeTable.SetShape(expr, new TypeShape
                 (expr.Value.GetType()));
         }
 
@@ -194,24 +206,7 @@ namespace ClrScript.Visitation
                 shapeInfoByPropName[key.Value] = propShape;
             }
 
-            _shapeTable.SetShape(objLiteral, new ClrScriptObjectShapeInfo(shapeInfoByPropName));
-        }
-
-        public void VisitMemberAccess(MemberAccess memberAccess)
-        {
-            memberAccess.Expr.Accept(this);
-        }
-
-        public void VisitReturnStmt(ReturnStmt returnStmt)
-        {
-            returnStmt.Expression.Accept(this);
-        }
-
-        public void VisitUnary(Unary expr)
-        {
-            expr.Right.Accept(this);
-            var innerShape = _shapeTable.GetShape(expr.Right);
-            _shapeTable.SetShape(expr, innerShape);
+            _shapeTable.SetShape(objLiteral, new ClrScriptObjectShape(shapeInfoByPropName));
         }
 
         public void VisitMemberRootAccess(MemberRootAccess member)
@@ -247,14 +242,75 @@ namespace ClrScript.Visitation
                         }
 
                         member.AccessType = RootMemberAccessType.External;
-                        _shapeTable.SetShape(member, new BasicShapeInfo(prop.Property.PropertyType));
-                        member.ExternalProperty = prop.Property;
+                        _shapeTable.SetShape(member, new TypeShape(prop.Property.PropertyType));
+                        return;
+                    }
+                    else if (externalMember is ExternalTypeField field)
+                    {
+                        member.AccessType = RootMemberAccessType.External;
+                        _shapeTable.SetShape(member, new TypeShape(field.Field.FieldType));
+                        return;
+                    }
+                    else if (externalMember is ExternalTypeMethod method)
+                    {
+                        member.AccessType = RootMemberAccessType.External;
+                        var methodInfo = method.Method;
+                        ShapeInfo returnShape = null;
+
+                        if (methodInfo.ReturnType != null)
+                        {
+                            returnShape = new TypeShape(methodInfo.ReturnType);
+                        }
+
+                        var args = methodInfo.GetParameters()
+                            .Select(p => new TypeShape(p.ParameterType))
+
+                            .ToArray();
+
+                        _shapeTable.SetShape(member, new MethodShape(true, returnShape, args));
                         return;
                     }
                 }
             }
 
-            _errors.Add(new ClrScriptCompileError($"Variable '{member.Name.Value}' does not exist.", member));
+            _errors.Add(new ClrScriptCompileError($"Variable or built-in '{member.Name.Value}' does not exist.", member));
+        }
+
+        public void VisitMemberAccess(MemberAccess memberAccess)
+        {
+            memberAccess.Expr.Accept(this);
+            
+            var exprShape = _shapeTable.GetShape(memberAccess.Expr);
+            
+            if (exprShape is ClrScriptObjectShape objShape)
+            {
+                var propName = memberAccess.Name.Value;
+                if (objShape.ShapeInfoByPropName.TryGetValue(propName, out var propShape))
+                {
+                    _shapeTable.SetShape(memberAccess, propShape);
+                }
+                else
+                {
+                    // Property doesn't exist yet, set unknown shape
+                    _shapeTable.SetShape(memberAccess, new UnknownShape());
+                }
+            }
+            else
+            {
+                _shapeTable.SetShape(memberAccess, new UnknownShape());
+            }
+        }
+
+        public void VisitReturnStmt(ReturnStmt returnStmt)
+        {
+            returnStmt.Expression.Accept(this);
+        }
+
+        public void VisitUnary(Unary expr)
+        {
+            expr.Right.Accept(this);
+            var innerShape = _shapeTable.GetShape(expr.Right);
+            _shapeTable.SetShape(expr, innerShape);
         }
 
         public void VisitVarStmt(VarStmt varStmt)
@@ -295,8 +351,11 @@ namespace ClrScript.Visitation
 
             _symbolTable.SetSymbolFor(varStmt, symbol);
 
-            varStmt.Initializer.Accept(this);
-            _shapeTable.SetShape(varStmt, _shapeTable.GetShape(varStmt.Initializer));
+            if (varStmt.Initializer != null)
+            {
+                varStmt.Initializer.Accept(this);
+                _shapeTable.SetShape(varStmt, _shapeTable.GetShape(varStmt.Initializer));
+            }
         }
 
         public void VisitWhileStmt(WhileStmt whileStmt)

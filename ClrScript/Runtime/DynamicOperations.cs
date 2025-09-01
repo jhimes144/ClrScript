@@ -1,13 +1,28 @@
-﻿using ClrScript.Runtime.Builtins;
+﻿using ClrScript.Lexer.TokenReaders;
+using ClrScript.Runtime.Builtins;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace ClrScript.Runtime
 {
-    public static class DynamicOperators
+    public class DynMethodCallInfo
+    {
+        public object Instance { get; }
+
+        public MethodInfo Info { get; }
+
+        public DynMethodCallInfo(object instance, MethodInfo info)
+        {
+            Instance = instance;
+            Info = info;
+        }
+    }
+
+    public static class DynamicOperations
     {
         public static object Add(object left, object right)
         {
@@ -141,7 +156,7 @@ namespace ClrScript.Runtime
 
             if (type == typeof(ClrScriptObject))
             {
-                ((ClrScriptObject)value).Set(memberName, value);
+                ((ClrScriptObject)value).DynSet(memberName, value);
             }
             else if (type.IsValueType || type == typeof(string))
             {
@@ -151,6 +166,53 @@ namespace ClrScript.Runtime
             {
                 throw new NotImplementedException("External type reflection assign.");
             }
+        }
+
+        public static object MemberAccess(object instance, string memberName)
+        {
+            var type = instance.GetTypeIncludeNull();
+
+            if (typeof(ClrScriptObject).IsAssignableFrom(type))
+            {
+                return ((ClrScriptObject)instance).DynGet(memberName);
+            }
+
+            var field = Util.GetFieldAccountForNameOverride(type, memberName);
+
+            if (field != null)
+            {
+                return field.GetValue(instance);
+            }
+
+            var prop = Util.GetPropertyAccountForNameOverride(type, memberName);
+
+            if (prop != null)
+            {
+                return prop.GetValue(instance);
+            }
+
+            var method = Util.GetMethodAccountForNameOverride(type, memberName);
+
+            if (method != null)
+            {
+                return new DynMethodCallInfo(instance, method);
+            }
+
+            throw new ClrScriptRuntimeException($"Cannot access member on '{memberName}' on '{type}'.");
+        }
+
+        public static object Call(object methodData, object[] args)
+        {
+            if (methodData is Delegate del)
+            {
+                del.DynamicInvoke(args);
+            }
+            else if (methodData is DynMethodCallInfo dynMethodInfo)
+            {
+                dynMethodInfo.Info.Invoke(dynMethodInfo.Instance, args);
+            }
+
+            throw new ClrScriptRuntimeException($"'{methodData.GetType().Name}' is not callable.");
         }
     }
 }

@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace ClrScript
 {
-    [AttributeUsage(AttributeTargets.Property)]
-    public class ClrScriptPropertyAttribute : Attribute
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Method | AttributeTargets.Field)]
+    public class ClrScriptMemberAttribute : Attribute
     {
         public bool ConvertToCamelCase { get; set; }
 

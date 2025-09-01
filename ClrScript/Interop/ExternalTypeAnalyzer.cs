@@ -82,14 +82,14 @@ namespace ClrScript.Interop
             }
 
             var methods = type.GetMethods()
-                .Where(m => m.GetCustomAttribute<ClrScriptMethodAttribute>() != null);
+                .Where(m => m.GetCustomAttribute<ClrScriptMemberAttribute>() != null);
 
             var methodResults = new List<ExternalTypeMethod>();
 
             foreach (var method in methods)
             {
-                var atrib = method.GetCustomAttribute<ClrScriptMethodAttribute>();
-                var name = getMemberName(method.Name, atrib.NameOverride, atrib.ConvertToCamelCase);
+                var atrib = method.GetCustomAttribute<ClrScriptMemberAttribute>();
+                var name = Util.GetMemberName(method.Name, atrib.NameOverride, atrib.ConvertToCamelCase);
 
                 if (method.IsGenericMethod)
                 {
@@ -121,14 +121,14 @@ namespace ClrScript.Interop
             }
 
             var props = type.GetProperties()
-                .Where(m => m.GetCustomAttribute<ClrScriptPropertyAttribute>() != null);
+                .Where(m => m.GetCustomAttribute<ClrScriptMemberAttribute>() != null);
 
             var propResults = new List<ExternalTypeProperty>();
 
             foreach (var prop in props)
             {
-                var atrib = prop.GetCustomAttribute<ClrScriptPropertyAttribute>();
-                var name = getMemberName(prop.Name, atrib.NameOverride, atrib.ConvertToCamelCase);
+                var atrib = prop.GetCustomAttribute<ClrScriptMemberAttribute>();
+                var name = Util.GetMemberName(prop.Name, atrib.NameOverride, atrib.ConvertToCamelCase);
 
                 Analyze(prop.PropertyType);
 
@@ -140,14 +140,14 @@ namespace ClrScript.Interop
             }
 
             var fields = type.GetFields()
-                .Where(f => f.GetCustomAttribute<ClrScriptFieldAttribute>() != null);
+                .Where(f => f.GetCustomAttribute<ClrScriptMemberAttribute>() != null);
 
             var fieldResults = new List<ExternalTypeField>();
 
             foreach (var field in fields)
             {
-                var atrib = field.GetCustomAttribute<ClrScriptFieldAttribute>();
-                var name = getMemberName(field.Name, atrib.NameOverride, atrib.ConvertToCamelCase);
+                var atrib = field.GetCustomAttribute<ClrScriptMemberAttribute>();
+                var name = Util.GetMemberName(field.Name, atrib.NameOverride, atrib.ConvertToCamelCase);
 
                 if (field.IsStatic)
                 {
@@ -166,20 +166,6 @@ namespace ClrScript.Interop
 
             _externalTypesByRealTypeName[type.Name] 
                 = new ExternalType(type.Name, type, methodResults, propResults, fieldResults);
-        }
-
-        string getMemberName(string memberName, string nameOverride, bool convertToCamel)
-        {
-            if (convertToCamel)
-            {
-                memberName = Util.ConvertStrToCamel(memberName);
-            }
-            else if (!string.IsNullOrWhiteSpace(nameOverride))
-            {
-                memberName = nameOverride;
-            }
-
-            return memberName;
         }
     }
 }

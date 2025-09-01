@@ -10,5 +10,7 @@ namespace ClrScript.Interop
     class ExternalTypeMethod : ExternalTypeMember
     {
         public MethodInfo Method { get; set; }
+
+        public override MemberInfo MemberInfo => Method;
     }
 }

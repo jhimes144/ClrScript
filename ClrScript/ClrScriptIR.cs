@@ -72,7 +72,7 @@ namespace ClrScript
             var parseResult = parser.Parse();
 
             var symbolTable = new SymbolTable();
-            var shapeTable = new ShapeTable();
+            var shapeTable = new ShapeTable(externalTypeAnalyzer.InType.ClrType);
             var analyzer = new AnalyzerVisitor(symbolTable, externalTypeAnalyzer, shapeTable, allErrors);
 
             foreach (var statement in parseResult)

@@ -76,10 +76,13 @@ namespace ClrScript.Visitation.Compilation
             var type = varShapeInfo?.InferredType ?? typeof(object);
             _context.CurrentEnv.DeclareVariable(varStmt.Name.Value, type);
 
-            varStmt.Initializer.Accept(_context.ExpressionCompiler);
-            _context.CurrentEnv.Generator.EmitBoxIfNeeded(varStmt, varStmt.Initializer, _context.ShapeTable);
+            if (varStmt.Initializer != null)
+            {
+                varStmt.Initializer.Accept(_context.ExpressionCompiler);
+                _context.CurrentEnv.Generator.EmitBoxIfNeeded(varStmt, varStmt.Initializer, _context.ShapeTable);
 
-            _context.CurrentEnv.VariableEmitStoreFromEvalStack(varStmt.Name.Value);
+                _context.CurrentEnv.VariableEmitStoreFromEvalStack(varStmt.Name.Value);
+            }
         }
 
         public void VisitWhileStmt(WhileStmt whileStmt)

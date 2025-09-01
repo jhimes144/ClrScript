@@ -10,5 +10,7 @@ namespace ClrScript.Interop
     class ExternalTypeProperty : ExternalTypeMember
     {
         public PropertyInfo Property { get; set; }
+
+        public override MemberInfo MemberInfo => Property;
     }
 }

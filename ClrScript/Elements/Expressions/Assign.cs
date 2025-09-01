@@ -12,14 +12,14 @@ namespace ClrScript.Elements.Expressions
     {
         public Expr AssignTo { get; }
 
-        public Expr Expression { get; }
+        public Expr ExprAssignValue { get; }
 
         public override Token StartLocation => AssignTo.StartLocation;
 
         public Assign(Expr assignTo, Expr expression)
         {
             AssignTo = assignTo;
-            Expression = expression;
+            ExprAssignValue = expression;
         }
 
         public override void Accept(IExpressionVisitor visitor)

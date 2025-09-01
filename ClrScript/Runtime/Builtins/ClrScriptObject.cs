@@ -8,17 +8,48 @@ namespace ClrScript.Runtime.Builtins
 {
     public class ClrScriptObject
     {
-        readonly Dictionary<string, object> _properties
+        readonly Dictionary<string, object> _dynProperties
             = new Dictionary<string, object>();
 
-        public void Set(string key, object value)
+        public void DynSet(string key, object value)
         {
-            _properties[key] = value;
+            var type = GetType();
+            var field = type.GetField(key);
+
+            if (field != null)
+            {
+                if (field.FieldType.IsAssignableFrom(value.GetType()))
+                {
+                    field.SetValue(this, value);
+                }
+                else
+                {
+                    field.SetValue(this, null);
+                    _dynProperties[key] = value;
+                }
+            }
+            else
+            {
+                _dynProperties[key] = value;
+            }
         }
 
-        public object Get(string key)
+        public object DynGet(string key)
         {
-            return _properties.GetValueOrDefault(key);
+            if (_dynProperties.TryGetValue(key, out var value))
+            {
+                return value;
+            }
+
+            var type = GetType();
+            var field = type.GetField(key);
+
+            if (field != null)
+            {
+                return field.GetValue(this);
+            }
+
+            return null;
         }
     }
 }

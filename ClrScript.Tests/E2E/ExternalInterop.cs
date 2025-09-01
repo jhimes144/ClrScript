@@ -10,14 +10,20 @@ namespace ClrScript.Tests.E2E
 {
     public interface ITestInteropClass : IImplementsPrintStmt
     {
-        [ClrScriptProperty(ConvertToCamelCase = true)]
+        [ClrScriptMember(ConvertToCamelCase = true)]
         string RootStringProp { get; set; }
 
-        [ClrScriptProperty(ConvertToCamelCase = true)]
+        [ClrScriptMember(ConvertToCamelCase = true)]
         int RootIntProp { get; set; }
 
-        [ClrScriptProperty(ConvertToCamelCase = true)]
+        [ClrScriptMember(ConvertToCamelCase = true)]
         bool RootBoolProp { get; set; }
+
+        [ClrScriptMember(ConvertToCamelCase = true)]
+        public string EchoString(string value)
+        {
+            return value;
+        }
     }
 
     [TestClass]
@@ -156,6 +162,19 @@ namespace ClrScript.Tests.E2E
 
             Assert.ThrowsException<ClrScriptRuntimeException>
                 (() => context.Run(testClass.Object));
+        }
+
+        [TestMethod]
+        public void Basic_External_Call()
+        {
+            var testClass = new Mock<ITestInteropClass>();
+
+            var context = ClrScriptContext<ITestInteropClass>.Compile(@"
+                return echoString(""hello world"");
+            ");
+
+            var result = context.Run(testClass.Object);
+            Assert.AreEqual(result, "hello world");
         }
     }
 }

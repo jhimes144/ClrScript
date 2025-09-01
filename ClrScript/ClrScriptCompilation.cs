@@ -40,6 +40,8 @@ namespace ClrScript
             var defaultClrScript = clankModule.DefineType("Default", TypeAttributes.Public);
             defaultClrScript.AddInterfaceImplementation(typeof(IClrScriptEntry<TIn>));
 
+            iR.ShapeTable.GenerateRuntimeTypes(clankModule);
+
             var compileContext = new CompilationContext(iR.Settings,
                 iR.SymbolTable,
                 iR.ShapeTable,

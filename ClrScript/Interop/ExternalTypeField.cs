@@ -10,5 +10,7 @@ namespace ClrScript.Interop
     class ExternalTypeField : ExternalTypeMember
     {
         public FieldInfo Field { get; set; }
+
+        public override MemberInfo MemberInfo => Field;
     }
 }

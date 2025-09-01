@@ -11,6 +11,7 @@ using ClrScript.Elements.Expressions;
 using ClrScript.Visitation;
 using System.Collections;
 using ClrScript.Interop;
+using ClrScript.Runtime;
 
 namespace ClrScript
 {
@@ -235,21 +236,64 @@ namespace ClrScript
         {
             var currentShapeInfo = shapeTable.GetShape(currentElement);
             var previousShapeInfo = shapeTable.GetShape(previousElement);
-            
-            var currentElementT = currentShapeInfo?.InferredType ?? typeof(object);
-            var previousElementT = previousShapeInfo?.InferredType ?? typeof(object);
 
-            if (currentElementT == typeof(object) && previousElementT.IsValueType)
+            EmitBoxIfNeeded(currentShapeInfo, previousShapeInfo);
+        }
+
+        public void EmitBoxIfNeeded(ShapeInfo currentShape, ShapeInfo previousShape)
+        {
+            var currentShapeT = currentShape?.InferredType ?? typeof(object);
+            var previousShapeT = previousShape?.InferredType ?? typeof(object);
+
+            if (currentShapeT == typeof(object) && previousShapeT.IsValueType)
             {
-                Emit(OpCodes.Box, previousElementT);
+                Emit(OpCodes.Box, previousShapeT);
             }
-            else if (!currentElementT.IsValueType && previousElementT.IsValueType)
+            else if (!currentShapeT.IsValueType && previousShapeT.IsValueType)
             {
                 throw new Exception("Cannot box value type, not assignable to current element type.");
             }
         }
 
-        public void EmitToExternalAssign(Expr expression, IExpressionVisitor exprVisitor,
+        public void EmitMemberAccess(ShapeInfo objShapeInfo, string memberName, ShapeInfo memberShapeInfo)
+        {
+            if (memberShapeInfo is UnknownShape || objShapeInfo is UnknownShape)
+            {
+                Emit(OpCodes.Ldstr, memberName);
+                EmitCall(OpCodes.Call, typeof(DynamicOperations)
+                        .GetMethod(nameof(DynamicOperations.MemberAccess)), null);
+
+                return;
+            }
+
+            var parentType = objShapeInfo.InferredType;
+
+            if (Util.GetFieldAccountForNameOverride(parentType, memberName) is FieldInfo fieldInfo &&
+                fieldInfo.FieldType.IsAssignableFrom(memberShapeInfo.InferredType))
+            {
+                Emit(OpCodes.Ldfld, fieldInfo);
+                return;
+            }
+
+            if (Util.GetPropertyAccountForNameOverride(parentType, memberName) is PropertyInfo propInfo
+                && propInfo.PropertyType.IsAssignableFrom(memberShapeInfo.InferredType))
+            {
+                Emit(OpCodes.Callvirt, propInfo.GetGetMethod());
+                return;
+            }
+
+            if (Util.GetMethodAccountForNameOverride(parentType, memberName) is MethodInfo)
+            {
+                // methods are special. There is nothing to emit onto the stack.
+                return;
+            }
+
+            Emit(OpCodes.Ldstr, memberName);
+            EmitCall(OpCodes.Call, typeof(DynamicOperations)
+                .GetMethod(nameof(DynamicOperations.MemberAccess)), null);
+        }
+
+        public void EmitAssign(Expr expression, IExpressionVisitor exprVisitor,
             Action emitLdAssigneObject, MemberInfo member, ShapeTable shapeTable)
         {
             Type memberAssignType;
@@ -374,20 +418,24 @@ namespace ClrScript
                     // Stack: [instance, value]
                     Emit(OpCodes.Pop); // pop value - Stack: [instance]
                     Emit(OpCodes.Pop); // pop instance - Stack: []
-                    Emit(OpCodes.Ldstr, $"Cannot assign to '{member.Name}'. Data is in wrong format. " +
+                    EmitThrowClrRuntimeException($"Cannot assign to '{member.Name}'. Data is in wrong format. " +
                         $"Expected '{memberAssignType.Name}'.");
-                    Emit(OpCodes.Newobj, _clrExcepMessageCstruc);
-                    Emit(OpCodes.Throw);
 
                     MarkLabel(lblEnd);
                 }
                 else
                 {
-                    Emit(OpCodes.Ldstr, $"Cannot assign value of type '{expressionType.Name}' to '{member.Name}' of type '{memberAssignType.Name}'.");
-                    Emit(OpCodes.Newobj, _clrExcepMessageCstruc);
-                    Emit(OpCodes.Throw);
+                    EmitThrowClrRuntimeException($"Cannot assign value of type " +
+                        $"'{expressionType.Name}' to '{member.Name}' of type '{memberAssignType.Name}'.");
                 }
             }
+        }
+
+        public void EmitThrowClrRuntimeException(string message)
+        {
+            Emit(OpCodes.Ldstr, message);
+            Emit(OpCodes.Newobj, _clrExcepMessageCstruc);
+            Emit(OpCodes.Throw);
         }
 
         public void EmitStackDoubleToNumericValueTypeConversion(Type targetType)
