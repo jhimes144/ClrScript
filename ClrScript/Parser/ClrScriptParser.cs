@@ -89,6 +89,12 @@ namespace ClrScript.Parser
                 return printStatement();
             }
 
+            // Check if this is an assignment statement
+            if (isAssignmentStatement())
+            {
+                return assignmentStatement();
+            }
+
             return expressionStatement();
         }
 
@@ -109,7 +115,19 @@ namespace ClrScript.Parser
             }
             else
             {
-                initializer = expressionStatement();
+                // Could be an assignment or expression statement
+                if (isAssignmentStatement())
+                {
+                    var assignTo = or();
+                    consume(TokenType.Equal, "Expected '=' in assignment.");
+                    var value = expression();
+                    consume(TokenType.SemiColon, "Expected ';' after initializer.");
+                    initializer = new AssignStmt(assignTo, value);
+                }
+                else
+                {
+                    initializer = expressionStatement();
+                }
             }
             
             Expr condition = null;
@@ -120,10 +138,22 @@ namespace ClrScript.Parser
 
             consume(TokenType.SemiColon, "Expected ';' after loop condition.");
             
-            Expr increment = null;
+            Stmt increment = null;
             if (!check(TokenType.RightParen))
             {
-                increment = expression();
+                // The increment can be an assignment or expression
+                if (isAssignmentStatement())
+                {
+                    var assignTo = or();
+                    consume(TokenType.Equal, "Expected '=' in assignment.");
+                    var value = expression();
+                    increment = new AssignStmt(assignTo, value);
+                }
+                else
+                {
+                    var expr = expression();
+                    increment = new ExpressionStmt(expr);
+                }
             }
 
             consume(TokenType.RightParen, "Expected ')' after for clauses.");
@@ -219,6 +249,34 @@ namespace ClrScript.Parser
             return new VarStmt(startLoc, VariableType.Var, name, init);
         }
 
+        bool isAssignmentStatement()
+        {
+            var current = _current;
+            try
+            {
+                // Try to parse the left side of a potential assignment
+                or(); // Parse up to assignment level
+                return check(TokenType.Equal);
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                _current = current;
+            }
+        }
+
+        Stmt assignmentStatement()
+        {
+            var assignTo = or();
+            consume(TokenType.Equal, "Expected '=' in assignment.");
+            var value = expression();
+            consumeSemiColon();
+            return new AssignStmt(assignTo, value);
+        }
+
         Stmt expressionStatement()
         {
             var expr = expression();
@@ -238,17 +296,9 @@ namespace ClrScript.Parser
                 return lambda();
             }
 
-            var expr = or();
-
-            if (matchAny(TokenType.Equal))
-            {
-                var equals = previous();
-                var value = assignment();
-
-                return new Assign(expr, value);
-            }
-
-            return expr;
+            // Assignments are now statements, not expressions
+            // So we just return the or() expression
+            return or();
         }
 
         bool isLambda()

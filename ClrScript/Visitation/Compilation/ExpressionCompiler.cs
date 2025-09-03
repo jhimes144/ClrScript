@@ -25,51 +25,6 @@ namespace ClrScript.Visitation.Compilation
             _context = context;
         }
 
-        public void VisitAssign(Assign expr)
-        {
-            var gen = _context.CurrentEnv.Generator;
-
-            if (expr.AssignTo is MemberRootAccess rootAccess)
-            {
-                if (rootAccess.AccessType == RootMemberAccessType.Variable)
-                {
-                    expr.ExprAssignValue.Accept(this);
-                    gen.EmitBoxIfNeeded(expr.AssignTo, expr.ExprAssignValue, _context.ShapeTable);
-
-                    _context.CurrentEnv.VariableEmitStoreFromEvalStack(rootAccess.Name.Value);
-                }
-                else if (rootAccess.AccessType == RootMemberAccessType.External)
-                {
-                    var member = _context.ExternalTypes.InType
-                        .FindMemberByName(rootAccess.Name.Value).MemberInfo;
-
-                    gen.EmitAssign(expr.ExprAssignValue, this, () => gen.Emit(OpCodes.Ldarg_1),
-                        member, _context.ShapeTable);
-                }
-                else
-                {
-                    throw new NotSupportedException();
-                }
-            }
-            else if (expr.AssignTo is MemberAccess assignToMemberAccess)
-            {
-                var assigneeShape = _context.ShapeTable.GetShape(assignToMemberAccess.Expr);
-                MemberInfo member = null;
-
-                if (assigneeShape.InferredType.GetField(assignToMemberAccess.Name.Value) is FieldInfo field)
-                {
-                    member = field;
-                }
-                else if (assigneeShape.InferredType.GetProperty(assignToMemberAccess.Name.Value) is PropertyInfo prop)
-                {
-                    member = prop;
-                }
-
-                gen.EmitAssign(expr.ExprAssignValue, this, () => assignToMemberAccess.Expr.Accept(this),
-                    member, _context.ShapeTable);
-            }
-        }
-
         public void VisitBinary(Binary expr)
         {
             var gen = _context.CurrentEnv.Generator;

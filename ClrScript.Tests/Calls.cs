@@ -83,6 +83,69 @@ public class Calls
     }
 
     [TestMethod]
+    public void External_Call_EchoString_Bad_Argument_2()
+    {
+        var testClass = new Mock<ITestCallClass>();
+        testClass.Setup(m => m.EchoString(It.IsAny<string>())).Returns((string str) => str);
+
+        var context = ClrScriptContext<ITestCallClass>.Compile(@"
+                return echoString({});
+            ");
+
+        Assert.ThrowsException<ClrScriptRuntimeException>(() =>
+        {
+            context.Run(testClass.Object);
+        });
+    }
+
+    [TestMethod]
+    public void External_Call_EchoString_Too_Many_Args()
+    {
+        var testClass = new Mock<ITestCallClass>();
+        testClass.Setup(m => m.EchoString(It.IsAny<string>())).Returns((string str) => str);
+
+        var context = ClrScriptContext<ITestCallClass>.Compile(@"
+                return echoString(""hello world"", ""hello world"");
+            ");
+
+        Assert.ThrowsException<ClrScriptRuntimeException>(() =>
+        {
+            context.Run(testClass.Object);
+        });
+    }
+
+    [TestMethod]
+    public void External_Call_EchoString_Too_Few_Args()
+    {
+        var testClass = new Mock<ITestCallClass>();
+        testClass.Setup(m => m.EchoString(It.IsAny<string>())).Returns((string str) => str);
+
+        var context = ClrScriptContext<ITestCallClass>.Compile(@"
+                return echoString();
+            ");
+
+        Assert.ThrowsException<ClrScriptRuntimeException>(() =>
+        {
+            context.Run(testClass.Object);
+        });
+    }
+
+    [TestMethod]
+    public void External_Call_Double_Arg_To_Int()
+    {
+        var testClass = new Mock<ITestCallClass>();
+        int valuePassed = 0;
+        testClass.Setup(m => m.VoidWithInt(It.IsAny<int>())).Callback((int v) => valuePassed = v);
+
+        var context = ClrScriptContext<ITestCallClass>.Compile(@"
+                voidWithInt(12);
+            ");
+
+        context.Run(testClass.Object);
+        Assert.AreEqual(12, valuePassed);
+    }
+
+    [TestMethod]
     public void External_Call_EchoString_Unknown_Argument()
     {
         var testClass = new Mock<ITestCallClass>();

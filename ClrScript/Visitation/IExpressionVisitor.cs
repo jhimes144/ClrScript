@@ -9,7 +9,6 @@ namespace ClrScript.Visitation
 {
     interface IExpressionVisitor
     {
-        void VisitAssign(Assign expr);
         void VisitBinary(Binary expr);
         void VisitGrouping(Grouping expr);
         void VisitLiteral(Literal expr);
@@ -23,4 +22,3 @@ namespace ClrScript.Visitation
         void VisitCall(Call call);
     }
 }
-

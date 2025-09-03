@@ -30,11 +30,11 @@ namespace ClrScript.Visitation
             _symbolTable.BeginScope(ScopeKind.Root);
         }
 
-        public void VisitAssign(Assign assignExpr)
+        public void VisitAssignStmt(AssignStmt assignStmt)
         {
-            if (assignExpr.AssignTo is MemberRootAccess rootAccess)
+            if (assignStmt.AssignTo is MemberRootAccess rootAccess)
             {
-                assignExpr.ExprAssignValue.Accept(this);
+                assignStmt.ExprAssignValue.Accept(this);
 
                 var existingSymbol = _symbolTable.CurrentScope.FindSymbolGoingUp
                     (rootAccess.Name.Value, out _);
@@ -42,7 +42,7 @@ namespace ClrScript.Visitation
                 if (existingSymbol != null)
                 {
                     var declaration = existingSymbol.Element as VarStmt;
-                    var derivedShape = _shapeTable.DeriveShape(declaration, assignExpr.ExprAssignValue);
+                    var derivedShape = _shapeTable.DeriveShape(declaration, assignStmt.ExprAssignValue);
                     _shapeTable.SetShape(declaration, derivedShape, true);
 
                     rootAccess.AccessType = RootMemberAccessType.Variable;
@@ -70,12 +70,12 @@ namespace ClrScript.Visitation
                     }
                 }
             }
-            else if (assignExpr.AssignTo is MemberAccess assignToMemberAccess)
+            else if (assignStmt.AssignTo is MemberAccess assignToMemberAccess)
             {
                 assignToMemberAccess.Expr.Accept(this);
-                assignExpr.ExprAssignValue.Accept(this);
+                assignStmt.ExprAssignValue.Accept(this);
 
-                var expressionShape = _shapeTable.GetShape(assignExpr.ExprAssignValue);
+                var expressionShape = _shapeTable.GetShape(assignStmt.ExprAssignValue);
                 var assigneeShape = _shapeTable.GetShape(assignToMemberAccess.Expr);
 
                 if (assigneeShape is ClrScriptObjectShape clrObjectAssigneeShape)
@@ -99,7 +99,7 @@ namespace ClrScript.Visitation
                 return;
             }
 
-            _errors.Add(new ClrScriptCompileError($"The left hand of an assignment must be variable, property, or indexer.", assignExpr));
+            _errors.Add(new ClrScriptCompileError($"The left hand of an assignment must be variable, property, or indexer.", assignStmt));
         }
 
         public void VisitBinary(Binary expr)

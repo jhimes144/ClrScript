@@ -1,7 +1,9 @@
-﻿using ClrScript.Elements.Statements;
+﻿using ClrScript.Elements.Expressions;
+using ClrScript.Elements.Statements;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
@@ -123,7 +125,7 @@ namespace ClrScript.Visitation.Compilation
 
             // Increment
             generator.MarkLabel(incrementStart);
-            forStmt.Increment?.Accept(_context.ExpressionCompiler);
+            forStmt.Increment?.Accept(this);
 
             // Jump back to condition
             generator.Emit(OpCodes.Br, loopStart);
@@ -141,6 +143,51 @@ namespace ClrScript.Visitation.Compilation
                 generator.Emit(OpCodes.Ldarg_1);
                 printStmt.Expression.Accept(_context.ExpressionCompiler);
                 generator.EmitCall(OpCodes.Callvirt, _context.ExternalTypes.PrintStmtMethod, null);
+            }
+        }
+
+        public void VisitAssignStmt(AssignStmt assignStmt)
+        {
+            var gen = _context.CurrentEnv.Generator;
+
+            if (assignStmt.AssignTo is MemberRootAccess rootAccess)
+            {
+                if (rootAccess.AccessType == RootMemberAccessType.Variable)
+                {
+                    assignStmt.ExprAssignValue.Accept(_context.ExpressionCompiler);
+                    gen.EmitBoxIfNeeded(assignStmt.AssignTo, assignStmt.ExprAssignValue, _context.ShapeTable);
+
+                    _context.CurrentEnv.VariableEmitStoreFromEvalStack(rootAccess.Name.Value);
+                }
+                else if (rootAccess.AccessType == RootMemberAccessType.External)
+                {
+                    var member = _context.ExternalTypes.InType
+                        .FindMemberByName(rootAccess.Name.Value).MemberInfo;
+
+                    gen.EmitAssign(assignStmt.ExprAssignValue, _context.ExpressionCompiler, () => gen.Emit(OpCodes.Ldarg_1),
+                        member, _context.ShapeTable);
+                }
+                else
+                {
+                    throw new NotSupportedException();
+                }
+            }
+            else if (assignStmt.AssignTo is MemberAccess assignToMemberAccess)
+            {
+                var assigneeShape = _context.ShapeTable.GetShape(assignToMemberAccess.Expr);
+                MemberInfo member = null;
+
+                if (assigneeShape.InferredType.GetField(assignToMemberAccess.Name.Value) is FieldInfo field)
+                {
+                    member = field;
+                }
+                else if (assigneeShape.InferredType.GetProperty(assignToMemberAccess.Name.Value) is PropertyInfo prop)
+                {
+                    member = prop;
+                }
+
+                gen.EmitAssign(assignStmt.ExprAssignValue, _context.ExpressionCompiler, () => assignToMemberAccess.Expr.Accept(_context.ExpressionCompiler),
+                    member, _context.ShapeTable);
             }
         }
     }

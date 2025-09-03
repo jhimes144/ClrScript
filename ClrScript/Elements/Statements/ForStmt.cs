@@ -13,14 +13,14 @@ namespace ClrScript.Elements.Statements
     {
         public Stmt Initializer { get; }
         public Expr Condition { get; }
-        public Expr Increment { get; }
+        public Stmt Increment { get; }
         public Stmt Body { get; }
 
         public override Token StartLocation { get; }
 
         // TODO: Continue and break statements
 
-        public ForStmt(Token startLoc, Stmt initializer, Expr condition, Expr increment, Stmt body)
+        public ForStmt(Token startLoc, Stmt initializer, Expr condition, Stmt increment, Stmt body)
         {
             StartLocation = startLoc;
             Initializer = initializer;

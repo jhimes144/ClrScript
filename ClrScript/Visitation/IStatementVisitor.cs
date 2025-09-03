@@ -17,5 +17,6 @@ namespace ClrScript.Visitation
         void VisitReturnStmt(ReturnStmt returnStmt);
         void VisitForStmt(ForStmt forStmt);
         void VisitPrintStmt(PrintStmt printStmt);
+        void VisitAssignStmt(AssignStmt assignStmt);
     }
 }

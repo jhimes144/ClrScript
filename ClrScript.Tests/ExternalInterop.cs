@@ -28,7 +28,7 @@ namespace ClrScript.Tests
         [TestMethod]
         public void InternalClassFails()
         {
-            Assert.ThrowsException<ClrScriptCompileException>
+            Assert.ThrowsException<ClrScriptInteropException>
                 (() => ClrScriptContext<InternalTestClass>.Compile("var t = 12;"));
         }
 

@@ -1,4 +1,5 @@
-﻿using ClrScript.Lexer;
+using ClrScript.Elements.Expressions;
+using ClrScript.Lexer;
 using ClrScript.Visitation;
 using System;
 using System.Collections.Generic;
@@ -6,9 +7,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ClrScript.Elements.Expressions
+namespace ClrScript.Elements.Statements
 {
-    class Assign : Expr
+    class AssignStmt : Stmt
     {
         public Expr AssignTo { get; }
 
@@ -16,15 +17,15 @@ namespace ClrScript.Elements.Expressions
 
         public override Token StartLocation => AssignTo.StartLocation;
 
-        public Assign(Expr assignTo, Expr expression)
+        public AssignStmt(Expr assignTo, Expr expression)
         {
             AssignTo = assignTo;
             ExprAssignValue = expression;
         }
 
-        public override void Accept(IExpressionVisitor visitor)
+        public override void Accept(IStatementVisitor visitor)
         {
-            visitor.VisitAssign(this);
+            visitor.VisitAssignStmt(this);
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using ClrScript.Lexer.TokenReaders;
+﻿using ClrScript.Interop;
+using ClrScript.Lexer.TokenReaders;
 using ClrScript.Runtime.Builtins;
 using System;
 using System.Collections.Generic;
@@ -207,6 +208,7 @@ namespace ClrScript.Runtime
             {
                 try
                 {
+                    CheckArgs(args, del.GetMethodInfo().GetParameters());
                     return del.DynamicInvoke(args);
                 }
                 catch (Exception e)
@@ -219,6 +221,7 @@ namespace ClrScript.Runtime
             {
                 try
                 {
+                    CheckArgs(args, dynMethodInfo.Info.GetParameters());
                     return dynMethodInfo.Info.Invoke(dynMethodInfo.Instance, args);
                 }
                 catch (Exception e)
@@ -229,6 +232,42 @@ namespace ClrScript.Runtime
             }
 
             throw new ClrScriptRuntimeException($"'{methodData.GetType().Name}' is not callable.");
+        }
+
+        static void CheckArgs(object[] args, ParameterInfo[] parameters)
+        {
+            if (args.Length != parameters.Length)
+            {
+                throw new ClrScriptRuntimeException($"Incorrect argument count supplied." +
+                    $" Expected {parameters.Length} argument(s) and was supplied {args.Length}.");
+            }
+
+            for (var i = 0; i < args.Length; i++)
+            {
+                var argT = args[i].GetTypeIncludeNull();
+                var parT = parameters[i].ParameterType;
+
+                if (parT.IsAssignableFrom(argT))
+                {
+                    continue;
+                }
+
+                if (args[i] is double v)
+                {
+                    if (parT == typeof(double))
+                    {
+                        continue;
+                    }
+
+                    if (InteropHelpers.GetIsSupportedNumericInteropType(parT))
+                    {
+                        args[i] = InteropHelpers.ConvertDynBoxNumeric(v, parT);
+                        continue;
+                    }
+
+                    throw new ClrScriptRuntimeException($"Cannot convert number to '{parT.Name}'");
+                }
+            }
         }
 
         public static DynMethodCallInfo CreateDynCallInfo(object instance, string methodName)
