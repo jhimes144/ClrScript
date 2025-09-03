@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ClrScript.Tests.E2E
+namespace ClrScript.Tests
 {
     [TestClass]
     public class ObjectLiterals

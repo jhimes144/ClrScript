@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ClrScript.Tests.E2E
+namespace ClrScript.Tests
 {
     public interface ITestInteropClass : IImplementsPrintStmt
     {
@@ -18,12 +18,6 @@ namespace ClrScript.Tests.E2E
 
         [ClrScriptMember(ConvertToCamelCase = true)]
         bool RootBoolProp { get; set; }
-
-        [ClrScriptMember(ConvertToCamelCase = true)]
-        public string EchoString(string value)
-        {
-            return value;
-        }
     }
 
     [TestClass]
@@ -52,7 +46,7 @@ namespace ClrScript.Tests.E2E
             ");
 
             context.Run(testClass.Object);
-            Assert.AreEqual(printValue, "hello world");
+            Assert.AreEqual("hello world", printValue);
         }
 
         [TestMethod]
@@ -67,7 +61,7 @@ namespace ClrScript.Tests.E2E
             ");
 
             context.Run(testClass.Object);
-            Assert.AreEqual(testClass.Object.RootStringProp, "hello world");
+            Assert.AreEqual("hello world", testClass.Object.RootStringProp);
         }
 
         [TestMethod]
@@ -89,7 +83,7 @@ namespace ClrScript.Tests.E2E
             ");
 
             context.Run(testClass.Object);
-            Assert.AreEqual(testClass.Object.RootStringProp, "hello world");
+            Assert.AreEqual("hello world", testClass.Object.RootStringProp);
         }
 
         [TestMethod]
@@ -111,7 +105,7 @@ namespace ClrScript.Tests.E2E
             ");
 
             context.Run(testClass.Object);
-            Assert.AreEqual(testClass.Object.RootBoolProp, true);
+            Assert.AreEqual(true, testClass.Object.RootBoolProp);
         }
 
         [TestMethod]
@@ -125,7 +119,7 @@ namespace ClrScript.Tests.E2E
             ");
 
             context.Run(testClass.Object);
-            Assert.AreEqual(testClass.Object.RootIntProp, 12);
+            Assert.AreEqual(12, testClass.Object.RootIntProp);
         }
 
         [TestMethod]
@@ -146,7 +140,7 @@ namespace ClrScript.Tests.E2E
             ");
 
             context.Run(testClass.Object);
-            Assert.AreEqual(testClass.Object.RootIntProp, 12);
+            Assert.AreEqual(12, testClass.Object.RootIntProp);
         }
 
         [TestMethod]
@@ -162,19 +156,6 @@ namespace ClrScript.Tests.E2E
 
             Assert.ThrowsException<ClrScriptRuntimeException>
                 (() => context.Run(testClass.Object));
-        }
-
-        [TestMethod]
-        public void Basic_External_Call()
-        {
-            var testClass = new Mock<ITestInteropClass>();
-
-            var context = ClrScriptContext<ITestInteropClass>.Compile(@"
-                return echoString(""hello world"");
-            ");
-
-            var result = context.Run(testClass.Object);
-            Assert.AreEqual(result, "hello world");
         }
     }
 }

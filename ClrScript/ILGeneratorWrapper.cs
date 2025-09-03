@@ -52,6 +52,8 @@ namespace ClrScript
 
         public IReadOnlyList<ILOpDisplay> InstructionsRendered => _instructionsRendered;
 
+        public Stack CompilerStack { get; } = new Stack();
+
         public ILGeneratorWrapper(ILGenerator ilGenerator)
         {
             _ilGenerator = ilGenerator ?? throw new ArgumentNullException(nameof(ilGenerator));
@@ -245,14 +247,30 @@ namespace ClrScript
             var currentShapeT = currentShape?.InferredType ?? typeof(object);
             var previousShapeT = previousShape?.InferredType ?? typeof(object);
 
-            if (currentShapeT == typeof(object) && previousShapeT.IsValueType)
+            if (!currentShapeT.IsValueType && previousShapeT.IsValueType)
             {
                 Emit(OpCodes.Box, previousShapeT);
             }
-            else if (!currentShapeT.IsValueType && previousShapeT.IsValueType)
+        }
+
+        public void EmitDynamicCall(Call call, IExpressionVisitor visitor, ShapeTable shapeTable)
+        {
+            Emit(OpCodes.Ldc_I4, call.Arguments.Count);
+            Emit(OpCodes.Newarr, typeof(object));
+
+            for (int i = 0; i < call.Arguments.Count; i++)
             {
-                throw new Exception("Cannot box value type, not assignable to current element type.");
+                Emit(OpCodes.Dup);
+                Emit(OpCodes.Ldc_I4, i);
+
+                call.Arguments[i].Accept(visitor);
+                EmitBoxIfNeeded(call, call.Arguments[i], shapeTable);
+
+                Emit(OpCodes.Stelem_Ref);
             }
+
+            EmitCall(OpCodes.Call, typeof(DynamicOperations)
+                .GetMethod(nameof(DynamicOperations.Call)), null);
         }
 
         public void EmitMemberAccess(ShapeInfo objShapeInfo, string memberName, ShapeInfo memberShapeInfo)
@@ -282,9 +300,9 @@ namespace ClrScript
                 return;
             }
 
-            if (Util.GetMethodAccountForNameOverride(parentType, memberName) is MethodInfo)
+            if (Util.GetMethodAccountForNameOverride(parentType, memberName) is MethodInfo methodInfo)
             {
-                // methods are special. There is nothing to emit onto the stack.
+                CompilerStack.Push(methodInfo);
                 return;
             }
 
@@ -429,6 +447,18 @@ namespace ClrScript
                         $"'{expressionType.Name}' to '{member.Name}' of type '{memberAssignType.Name}'.");
                 }
             }
+        }
+
+        public T ConsumeCompilerStack<T>() where T : class
+        {
+            var pop = CompilerStack.Pop() as T;
+
+            if (pop == null)
+            {
+                throw new Exception($"Was expecting {typeof(T).Name} on compiler stack.");
+            }
+
+            return pop;
         }
 
         public void EmitThrowClrRuntimeException(string message)

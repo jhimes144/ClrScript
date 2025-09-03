@@ -205,14 +205,43 @@ namespace ClrScript.Runtime
         {
             if (methodData is Delegate del)
             {
-                del.DynamicInvoke(args);
+                try
+                {
+                    return del.DynamicInvoke(args);
+                }
+                catch (Exception e)
+                {
+                    throw new ClrScriptRuntimeException
+                        (e, $"Error calling lambda method. {e.Message}");
+                }
             }
             else if (methodData is DynMethodCallInfo dynMethodInfo)
             {
-                dynMethodInfo.Info.Invoke(dynMethodInfo.Instance, args);
+                try
+                {
+                    return dynMethodInfo.Info.Invoke(dynMethodInfo.Instance, args);
+                }
+                catch (Exception e)
+                {
+                    throw new ClrScriptRuntimeException
+                        (e, $"Error calling '{dynMethodInfo.Info.Name}'. {e.Message}");
+                }
             }
 
             throw new ClrScriptRuntimeException($"'{methodData.GetType().Name}' is not callable.");
+        }
+
+        public static DynMethodCallInfo CreateDynCallInfo(object instance, string methodName)
+        {
+            var type = instance.GetTypeIncludeNull();
+            var method = Util.GetMethodAccountForNameOverride(type, methodName);
+
+            if (method == null)
+            {
+                throw new ClrScriptRuntimeException($"Cannot access member on '{methodName}' on '{type}'.");
+            }
+
+            return new DynMethodCallInfo(instance, method);
         }
     }
 }

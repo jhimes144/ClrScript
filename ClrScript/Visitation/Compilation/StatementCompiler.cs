@@ -28,6 +28,7 @@ namespace ClrScript.Visitation.Compilation
         public void VisitExprStmt(ExpressionStmt exprStmt)
         {
             exprStmt.Expression.Accept(_context.ExpressionCompiler);
+            _context.CurrentEnv.Generator.Emit(OpCodes.Pop);
         }
 
         public void VisitIfStmt(IfStmt ifStmt)

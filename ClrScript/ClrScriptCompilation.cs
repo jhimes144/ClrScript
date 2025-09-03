@@ -10,6 +10,7 @@ using System.Reflection.Emit;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace ClrScript
 {
@@ -52,6 +53,8 @@ namespace ClrScript
             {
                 statement.Accept(compileContext.StatementCompiler);
             }
+
+            Debug.Assert(compileContext.CurrentEnv.Generator.CompilerStack.Count == 0);
 
             if (!compileContext.ReturnPrepped)
             {

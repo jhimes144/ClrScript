@@ -388,47 +388,64 @@ namespace ClrScript.Visitation.Compilation
         public void VisitCall(Call call)
         {
             var gen = _context.CurrentEnv.Generator;
-            var calleeShape = _context.ShapeTable.GetShape(call.Callee);
+            var shape = _context.ShapeTable.GetShape(call);
 
             call.Callee.Accept(this);
 
-            if (calleeShape is MethodShape methodShape)
+            if (shape is MethodShape methodShape)
             {
-                foreach (var arg in call.Arguments)
-                {
-                    // we need to insure here or analyzer if types for args match up
-                    // shouldnt be calling emit box
-                    arg.Accept(this);
-                    gen.EmitBoxIfNeeded(call, arg, _context.ShapeTable);
-                }
-
                 if (methodShape.IsTypeMethod)
                 {
+                    var methodInfo = gen.ConsumeCompilerStack<MethodInfo>();
                     
+                    if (CompileHelpers.GetCanBeOptimized(methodInfo, call, _context.ShapeTable))
+                    {
+                        foreach (var arg in call.Arguments)
+                        {
+                            arg.Accept(this);
+                        }
+
+                        gen.EmitCall(OpCodes.Callvirt, methodInfo, null);
+
+                        if (methodInfo.ReturnType == typeof(void))
+                        {
+                            gen.Emit(OpCodes.Ldnull);
+                        }
+                    }
+                    else
+                    {
+                        gen.Emit(OpCodes.Ldstr, methodInfo.Name);
+                        gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
+                            .GetMethod(nameof(DynamicOperations.CreateDynCallInfo)), null);
+                        gen.EmitDynamicCall(call, this, _context.ShapeTable);
+                    }
                 }
                 else
                 {
+                    if (CompileHelpers.GetCanBeOptimized(methodShape.DelegateShape.InferredType, call, _context.ShapeTable))
+                    {
+                        foreach (var arg in call.Arguments)
+                        {
+                            arg.Accept(this);
+                        }
 
+                        var invokeMethod = methodShape.InferredType.GetMethod("Invoke");
+                        gen.EmitCall(OpCodes.Callvirt, invokeMethod, null);
+
+                        if (invokeMethod.ReturnType == typeof(void))
+                        {
+                            gen.Emit(OpCodes.Ldnull);
+                        }
+                    }
+                    else
+                    {
+                        gen.EmitDynamicCall(call, this, _context.ShapeTable);
+                    }
                 }
             }
             else
             {
-                gen.Emit(OpCodes.Ldc_I4, call.Arguments.Count);
-                gen.Emit(OpCodes.Newarr, typeof(object));
-
-                for (int i = 0; i < call.Arguments.Count; i++)
-                {
-                    gen.Emit(OpCodes.Dup);
-                    gen.Emit(OpCodes.Ldc_I4, i);
-
-                    call.Arguments[i].Accept(this);
-                    gen.EmitBoxIfNeeded(call, call.Arguments[i], _context.ShapeTable);
-
-                    gen.Emit(OpCodes.Stelem_Ref);
-                }
-
-                gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
-                    .GetMethod(nameof(DynamicOperations.Call)), null);
+                gen.EmitDynamicCall(call, this, _context.ShapeTable);
             }
         }
     }

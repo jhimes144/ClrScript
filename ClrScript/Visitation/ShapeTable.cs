@@ -184,13 +184,22 @@ namespace ClrScript.Visitation
 
         public bool IsTypeMethod { get; }
 
+        public TypeShape DelegateShape { get; }
+
         public ShapeInfo Return { get; }
 
         public IReadOnlyList<ShapeInfo> Arguments { get; }
 
-        public MethodShape(bool isTypeMethod, ShapeInfo @return, IReadOnlyList<ShapeInfo> arguments)
+        public MethodShape(ShapeInfo @return, IReadOnlyList<ShapeInfo> arguments)
         {
-            IsTypeMethod = isTypeMethod;
+            IsTypeMethod = true;
+            Return = @return;
+            Arguments = arguments;
+        }
+
+        public MethodShape(TypeShape delegateShape, ShapeInfo @return, IReadOnlyList<ShapeInfo> arguments)
+        {
+            DelegateShape = delegateShape;
             Return = @return;
             Arguments = arguments;
         }

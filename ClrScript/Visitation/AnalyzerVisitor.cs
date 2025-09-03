@@ -143,6 +143,8 @@ namespace ClrScript.Visitation
             {
                 arg.Accept(this);
             }
+
+            _shapeTable.SetShape(call, _shapeTable.GetShape(call.Callee));
         }
 
         public void VisitExprStmt(ExpressionStmt exprStmt)
@@ -259,15 +261,17 @@ namespace ClrScript.Visitation
 
                         if (methodInfo.ReturnType != null)
                         {
-                            returnShape = new TypeShape(methodInfo.ReturnType);
+                            var returnType = methodInfo.ReturnType == typeof(void) 
+                                ? typeof(DynamicNull) : methodInfo.ReturnType;
+
+                            returnShape = new TypeShape(returnType);
                         }
 
                         var args = methodInfo.GetParameters()
                             .Select(p => new TypeShape(p.ParameterType))
-
                             .ToArray();
 
-                        _shapeTable.SetShape(member, new MethodShape(true, returnShape, args));
+                        _shapeTable.SetShape(member, new MethodShape(returnShape, args));
                         return;
                     }
                 }
