@@ -152,42 +152,13 @@ namespace ClrScript.Visitation.Compilation
 
             if (assignStmt.AssignTo is MemberRootAccess rootAccess)
             {
-                if (rootAccess.AccessType == RootMemberAccessType.Variable)
-                {
-                    assignStmt.ExprAssignValue.Accept(_context.ExpressionCompiler);
-                    gen.EmitBoxIfNeeded(assignStmt.AssignTo, assignStmt.ExprAssignValue, _context.ShapeTable);
-
-                    _context.CurrentEnv.VariableEmitStoreFromEvalStack(rootAccess.Name.Value);
-                }
-                else if (rootAccess.AccessType == RootMemberAccessType.External)
-                {
-                    var member = _context.ExternalTypes.InType
-                        .FindMemberByName(rootAccess.Name.Value).MemberInfo;
-
-                    gen.EmitAssign(assignStmt.ExprAssignValue, _context.ExpressionCompiler, () => gen.Emit(OpCodes.Ldarg_1),
-                        member, _context.ShapeTable);
-                }
-                else
-                {
-                    throw new NotSupportedException();
-                }
+                gen.EmitAssign(rootAccess, () => assignStmt.ExprAssignValue.Accept(_context.ExpressionCompiler),
+                    _context.ShapeTable.GetShape(assignStmt.ExprAssignValue), _context);
             }
             else if (assignStmt.AssignTo is MemberAccess assignToMemberAccess)
             {
-                var assigneeShape = _context.ShapeTable.GetShape(assignToMemberAccess.Expr);
-                MemberInfo member = null;
-
-                if (assigneeShape.InferredType.GetField(assignToMemberAccess.Name.Value) is FieldInfo field)
-                {
-                    member = field;
-                }
-                else if (assigneeShape.InferredType.GetProperty(assignToMemberAccess.Name.Value) is PropertyInfo prop)
-                {
-                    member = prop;
-                }
-
-                gen.EmitAssign(assignStmt.ExprAssignValue, _context.ExpressionCompiler, () => assignToMemberAccess.Expr.Accept(_context.ExpressionCompiler),
-                    member, _context.ShapeTable);
+                gen.EmitAssign(assignToMemberAccess, () => assignStmt.ExprAssignValue.Accept(_context.ExpressionCompiler),
+                    _context.ShapeTable.GetShape(assignStmt.ExprAssignValue), _context);
             }
         }
     }

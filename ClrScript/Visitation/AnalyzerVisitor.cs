@@ -317,6 +317,20 @@ namespace ClrScript.Visitation
             _shapeTable.SetShape(expr, innerShape);
         }
 
+        public void VisitPostfixUnary(PostfixUnary expr)
+        {
+            expr.Left.Accept(this);
+
+            if (!(expr.Left is MemberRootAccess || expr.Left is MemberAccess))
+            {
+                _errors.Add(new ClrScriptCompileError($"The operand of an increment or decrement operator must be a variable or property.", expr));
+                return;
+            }
+
+            var innerShape = _shapeTable.GetShape(expr.Left);
+            _shapeTable.SetShape(expr, innerShape);
+        }
+
         public void VisitVarStmt(VarStmt varStmt)
         {
             var existingSymbol = _symbolTable.CurrentScope.FindSymbolGoingUp

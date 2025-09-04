@@ -202,6 +202,8 @@ namespace ClrScript.Visitation
             DelegateShape = delegateShape;
             Return = @return;
             Arguments = arguments;
+
+            Span<byte> b = stackalloc byte[12];
         }
     }
 

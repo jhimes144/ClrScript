@@ -12,6 +12,8 @@ using ClrScript.Visitation;
 using System.Collections;
 using ClrScript.Interop;
 using ClrScript.Runtime;
+using ClrScript.Elements.Statements;
+using ClrScript.Visitation.Compilation;
 
 namespace ClrScript
 {
@@ -311,8 +313,49 @@ namespace ClrScript
                 .GetMethod(nameof(DynamicOperations.MemberAccess)), null);
         }
 
-        public void EmitAssign(Expr expression, IExpressionVisitor exprVisitor,
-            Action emitLdAssigneObject, MemberInfo member, ShapeTable shapeTable)
+        public void EmitAssign(MemberRootAccess rootAccess, Action emitValue, ShapeInfo valueShape, CompilationContext context)
+        {
+            if (rootAccess.AccessType == RootMemberAccessType.Variable)
+            {
+                emitValue();
+                EmitBoxIfNeeded(context.ShapeTable.GetShape(rootAccess), valueShape);
+
+                context.CurrentEnv.VariableEmitStoreFromEvalStack(rootAccess.Name.Value);
+            }
+            else if (rootAccess.AccessType == RootMemberAccessType.External)
+            {
+                var member = context.ExternalTypes.InType
+                    .FindMemberByName(rootAccess.Name.Value).MemberInfo;
+
+                EmitAssign(emitValue, () => Emit(OpCodes.Ldarg_1),
+                    member, valueShape);
+            }
+            else
+            {
+                throw new NotSupportedException();
+            }
+        }
+
+        public void EmitAssign(MemberAccess memberAccess, Action emitValue, ShapeInfo valueShape, CompilationContext context)
+        {
+            var assigneeShape = context.ShapeTable.GetShape(memberAccess.Expr);
+            MemberInfo member = null;
+
+            if (assigneeShape.InferredType.GetField(memberAccess.Name.Value) is FieldInfo field)
+            {
+                member = field;
+            }
+            else if (assigneeShape.InferredType.GetProperty(memberAccess.Name.Value) is PropertyInfo prop)
+            {
+                member = prop;
+            }
+
+            EmitAssign(emitValue, () => memberAccess.Expr.Accept(context.ExpressionCompiler),
+                member, valueShape);
+        }
+
+        public void EmitAssign(Action emitValue,
+            Action emitLdAssigneObject, MemberInfo member, ShapeInfo valueShape)
         {
             Type memberAssignType;
             PropertyInfo prop = null;
@@ -334,14 +377,13 @@ namespace ClrScript
             }
 
             var memberAssignIsSupportedNum = InteropHelpers.GetIsSupportedNumericInteropType(memberAssignType);
-            var expressionShapeInfo = shapeTable.GetShape(expression);
-            var expressionType = expressionShapeInfo?.InferredType ?? typeof(object);
+            var expressionType = valueShape?.InferredType ?? typeof(object);
 
             if (expressionType == memberAssignType)
             {
                 // direct assign, easy and fast
                 emitLdAssigneObject();
-                expression.Accept(exprVisitor);
+                emitValue();
 
                 if (prop != null)
                 {
@@ -357,7 +399,7 @@ namespace ClrScript
                 if (expressionType == typeof(double) && memberAssignIsSupportedNum)
                 {
                     emitLdAssigneObject();
-                    expression.Accept(exprVisitor);
+                    emitValue();
                     EmitStackDoubleToNumericValueTypeConversion(memberAssignType);
 
                     if (prop != null)
@@ -375,7 +417,7 @@ namespace ClrScript
                     var lblFailure = DefineLabel();
 
                     emitLdAssigneObject();
-                    expression.Accept(exprVisitor);
+                    emitValue();
 
                     if (memberAssignIsSupportedNum)
                     {

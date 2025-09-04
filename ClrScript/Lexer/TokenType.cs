@@ -42,6 +42,8 @@ namespace ClrScript.Lexer
     GreaterThanOrEqual,
     LessThanOrEqual,
     Arrow,
+    Increment,
+    Decrement,
 
     // Punctuation
     LeftParen,

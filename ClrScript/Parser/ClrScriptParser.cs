@@ -296,8 +296,6 @@ namespace ClrScript.Parser
                 return lambda();
             }
 
-            // Assignments are now statements, not expressions
-            // So we just return the or() expression
             return or();
         }
 
@@ -506,6 +504,11 @@ namespace ClrScript.Parser
 
                     var paren = consume(TokenType.RightParen, "Expected ')' after arguments.");
                     expr = new Call(paren, expr, arguments);
+                }
+                else if (matchAny(TokenType.Increment, TokenType.Decrement))
+                {
+                    var op = previous();
+                    expr = new PostfixUnary(expr, op);
                 }
                 else
                 {

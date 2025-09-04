@@ -44,6 +44,8 @@ namespace ClrScript.Lexer.TokenReaders
                 new LeftParen(),
                 new LessThanOrEqual(),
                 new LessThan(),
+                new Increment(),
+                new Decrement(),
                 new Minus(),
                 new Multiply(),
                 new Plus(),

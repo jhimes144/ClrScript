@@ -340,6 +340,47 @@ namespace ClrScript.Visitation.Compilation
             }
         }
 
+        public void VisitPostfixUnary(PostfixUnary expr)
+        {
+            var gen = _context.CurrentEnv.Generator;
+            var shape = _context.ShapeTable.GetShape(expr);
+
+            void emitValue()
+            {
+                expr.Left.Accept(this);
+                gen.EmitBoxIfNeeded(expr, expr.Left, _context.ShapeTable);
+
+                if (shape.InferredType == typeof(double))
+                {
+                    gen.Emit(OpCodes.Ldc_R8, 1.0);
+                    gen.Emit(expr.Op.Type == Lexer.TokenType.Increment ? OpCodes.Add : OpCodes.Sub);
+                }
+                else
+                {
+                    gen.Emit(OpCodes.Ldc_R8, 1.0);
+                    gen.Emit(OpCodes.Box, typeof(double));
+                    gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
+                        .GetMethod(expr.Op.Type == Lexer.TokenType.Increment ?
+                            nameof(DynamicOperations.Add) : nameof(DynamicOperations.Subtract)), null);
+                }
+
+                gen.Emit(OpCodes.Dup);
+            }
+
+            if (expr.Left is MemberRootAccess rootAccess)
+            {
+                gen.EmitAssign(rootAccess, emitValue, shape, _context);
+            }
+            else if (expr.Left is MemberAccess memberAccess)
+            {
+                gen.EmitAssign(memberAccess, emitValue, shape, _context);
+            }
+            else
+            {
+                throw new NotSupportedException();
+            }
+        }
+
         public void VisitCall(Call call)
         {
             var gen = _context.CurrentEnv.Generator;

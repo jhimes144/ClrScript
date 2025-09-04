@@ -254,11 +254,6 @@ namespace ClrScript.Runtime
 
                 if (args[i] is double v)
                 {
-                    if (parT == typeof(double))
-                    {
-                        continue;
-                    }
-
                     if (InteropHelpers.GetIsSupportedNumericInteropType(parT))
                     {
                         args[i] = InteropHelpers.ConvertDynBoxNumeric(v, parT);
