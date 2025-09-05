@@ -4,6 +4,7 @@ using System.Reflection.Emit;
 using System.Text;
 using ClrScript;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ClrScript.Lexer
 {
@@ -59,7 +60,9 @@ namespace ClrScript.Lexer
             }
 
             tokens.Add(new Token(TokenType.EOF, string.Empty, _reader.Line, _reader.Column));
-            return tokens;
+
+            // strip out comments
+            return tokens.Where(t => t.Type != TokenType.Comment).ToArray();
         }
 
         static string normalizeLineEndings(string input)

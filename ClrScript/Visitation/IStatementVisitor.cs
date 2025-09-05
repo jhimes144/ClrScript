@@ -18,5 +18,6 @@ namespace ClrScript.Visitation
         void VisitForStmt(ForStmt forStmt);
         void VisitPrintStmt(PrintStmt printStmt);
         void VisitAssignStmt(AssignStmt assignStmt);
+        void VisitPostFixUnaryAssignStmt(PostFixUnaryAssignStmt postFixUnaryAssignStmt);
     }
 }

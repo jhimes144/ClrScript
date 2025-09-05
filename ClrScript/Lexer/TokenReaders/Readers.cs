@@ -12,6 +12,7 @@ namespace ClrScript.Lexer.TokenReaders
         {
             return new ITokenReader[]
             {
+                new Comment(),
                 new If(),
                 new Else(),
                 new While(),

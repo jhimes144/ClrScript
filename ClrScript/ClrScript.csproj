@@ -5,6 +5,6 @@
   </PropertyGroup>
 
 	<ItemGroup>
-		<InternalsVisibleTo Include="ClrScriptDynamic" />
+		<InternalsVisibleTo Include="ClrScript.Tests" />
 	</ItemGroup>
 </Project>

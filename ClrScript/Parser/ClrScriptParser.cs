@@ -89,10 +89,14 @@ namespace ClrScript.Parser
                 return printStatement();
             }
 
-            // Check if this is an assignment statement
             if (isAssignmentStatement())
             {
-                return assignmentStatement();
+                return assignmentStatement(true);
+            }
+
+            if (isPostfixUnaryStatement())
+            {
+                return postfixUnaryStatement(true);
             }
 
             return expressionStatement();
@@ -102,7 +106,7 @@ namespace ClrScript.Parser
         {
             var startLoc = previous(); // The 'for' token that was just matched
             consume(TokenType.LeftParen, "Expected '(' after 'for'.");
-            
+
             // Initializer
             Stmt initializer;
             if (matchAny(TokenType.SemiColon))
@@ -139,20 +143,20 @@ namespace ClrScript.Parser
             consume(TokenType.SemiColon, "Expected ';' after loop condition.");
             
             Stmt increment = null;
+
             if (!check(TokenType.RightParen))
             {
-                // The increment can be an assignment or expression
                 if (isAssignmentStatement())
                 {
-                    var assignTo = or();
-                    consume(TokenType.Equal, "Expected '=' in assignment.");
-                    var value = expression();
-                    increment = new AssignStmt(assignTo, value);
+                    increment = assignmentStatement(false);
+                }
+                else if (isPostfixUnaryStatement())
+                {
+                    increment = postfixUnaryStatement(false);
                 }
                 else
                 {
-                    var expr = expression();
-                    increment = new ExpressionStmt(expr);
+                    throw new ClrScriptCompileException("Was expecting either an assignment or postfix unary.", peek());
                 }
             }
 
@@ -268,13 +272,50 @@ namespace ClrScript.Parser
             }
         }
 
-        Stmt assignmentStatement()
+        Stmt assignmentStatement(bool requireSemiColon)
         {
             var assignTo = or();
             consume(TokenType.Equal, "Expected '=' in assignment.");
             var value = expression();
-            consumeSemiColon();
+
+            if (requireSemiColon)
+            {
+                consumeSemiColon();
+            }
+            
             return new AssignStmt(assignTo, value);
+        }
+
+        bool isPostfixUnaryStatement()
+        {
+            var current = _current;
+            try
+            {
+                var expr = or(); 
+                return check(TokenType.Increment) || check(TokenType.Decrement);
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                _current = current;
+            }
+        }
+
+        Stmt postfixUnaryStatement(bool requireSemiColon)
+        {
+            var left = or();
+            var op = consume(check(TokenType.Increment) ? TokenType.Increment : TokenType.Decrement, 
+                "Expected '++' or '--'.");
+
+            if (requireSemiColon)
+            {
+                consumeSemiColon();
+            }
+
+            return new PostFixUnaryAssignStmt(left, op);
         }
 
         Stmt expressionStatement()
@@ -504,11 +545,6 @@ namespace ClrScript.Parser
 
                     var paren = consume(TokenType.RightParen, "Expected ')' after arguments.");
                     expr = new Call(paren, expr, arguments);
-                }
-                else if (matchAny(TokenType.Increment, TokenType.Decrement))
-                {
-                    var op = previous();
-                    expr = new PostfixUnary(expr, op);
                 }
                 else
                 {

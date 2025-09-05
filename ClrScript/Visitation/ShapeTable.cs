@@ -60,7 +60,11 @@ namespace ClrScript.Visitation
                         type = propShape.InferredType;
                     }
 
-                    builder.DefineField(prop, type, FieldAttributes.Public);
+                    var fieldBuilder = builder.DefineField(prop, type, FieldAttributes.Public);
+
+                    var attributeConstructor = typeof(ClrScriptMemberAttribute).GetConstructor(Type.EmptyTypes);
+                    var attributeBuilder = new CustomAttributeBuilder(attributeConstructor, new object[0]);
+                    fieldBuilder.SetCustomAttribute(attributeBuilder);
                 }
             }
 
@@ -154,7 +158,7 @@ namespace ClrScript.Visitation
                 return masterShape;
             }
 
-            return new UnknownShape(); // unknown shape
+            return new UnknownShape();
         }
     }
 
@@ -202,8 +206,6 @@ namespace ClrScript.Visitation
             DelegateShape = delegateShape;
             Return = @return;
             Arguments = arguments;
-
-            Span<byte> b = stackalloc byte[12];
         }
     }
 

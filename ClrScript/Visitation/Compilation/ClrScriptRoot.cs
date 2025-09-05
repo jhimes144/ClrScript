@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using ClrScript.TypeManagement;
 
 namespace ClrScript.Visitation.Compilation
 {
@@ -14,7 +15,7 @@ namespace ClrScript.Visitation.Compilation
         public ClrScriptRoot(CompilationContext context) : base(context)
         {
             Builder = context.RootClrScriptTypeBuilder.DefineMethod("Main", MethodAttributes.Public | MethodAttributes.Virtual,
-                typeof(object), new Type[] { context.ExternalTypes.InType.ClrType });
+                typeof(object), new Type[] { context.InType, typeof(TypeManager) });
 
             Generator = new ILGeneratorWrapper(Builder.GetILGenerator());
         }

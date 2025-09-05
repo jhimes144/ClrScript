@@ -12,17 +12,19 @@ using ClrScript.Elements.Statements;
 using ClrScript.Interop;
 using ClrScript.Visitation;
 using Microsoft.VisualBasic;
+using ClrScript.TypeManagement;
 
 namespace ClrScript
 {
     public interface IClrScriptEntry<TIn>
     {
-        object Main(TIn input);
+        object Main(TIn input, TypeManager typeManager);
     }
 
     public class ClrScriptContext<TIn> where TIn : class
     {
         readonly IClrScriptEntry<TIn> _entry;
+        readonly TypeManager _typeManager;
 
         public ClrScriptContext(ClrScriptCompilation<TIn> compilation)
         {
@@ -31,6 +33,7 @@ namespace ClrScript
                 throw new ArgumentNullException(nameof(compilation));
             }
 
+            _typeManager = compilation.TypeManager;
             _entry = (IClrScriptEntry<TIn>)Activator.CreateInstance(compilation.BuiltRootType);
         }
 
@@ -48,7 +51,7 @@ namespace ClrScript
 
         public object Run(TIn input)
         {
-            return _entry.Main(input);
+            return _entry.Main(input, _typeManager);
         }
     }
 }

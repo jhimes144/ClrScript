@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace ClrScript.Runtime.Builtins
 {
+    /// <summary>
+    /// Internal representation of objects in ClrScript. YOU SHOULD NOT inherit this class.
+    /// </summary>
     public class ClrScriptObject
     {
         readonly Dictionary<string, object> _dynProperties

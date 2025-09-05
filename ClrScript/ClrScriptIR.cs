@@ -2,6 +2,7 @@
 using ClrScript.Interop;
 using ClrScript.Lexer;
 using ClrScript.Parser;
+using ClrScript.TypeManagement;
 using ClrScript.Visitation;
 using System;
 using System.Collections.Generic;
@@ -26,7 +27,8 @@ namespace ClrScript
         internal SymbolTable SymbolTable { get; }
         internal ShapeTable ShapeTable { get; }
         internal ClrScriptCompilationSettings Settings { get; }
-        internal ExternalTypeAnalyzer ExternalTypeAnalyzer { get; }
+        internal TypeManager TypeManager { get; }
+        internal Type InType { get; }
 
         internal ClrScriptIR(IReadOnlyList<ClrScriptCompileError> errors,
              IReadOnlyList<Stmt> statements,
@@ -34,7 +36,8 @@ namespace ClrScript
             SymbolTable symbolTable,
             ShapeTable shapeTable,
             ClrScriptCompilationSettings settings,
-            ExternalTypeAnalyzer analyzer)
+            TypeManager typeManager,
+            Type inType)
         {
             Errors = errors;
             Warnings = warnings;
@@ -42,7 +45,8 @@ namespace ClrScript
             SymbolTable = symbolTable;
             ShapeTable = shapeTable;
             Settings = settings;
-            ExternalTypeAnalyzer = analyzer;
+            TypeManager = typeManager;
+            InType = inType;
         }
 
         public static ClrScriptIR<TIn> Build(IEnumerable<string> sources, ClrScriptCompilationSettings settings = null)
@@ -61,9 +65,8 @@ namespace ClrScript
         {
             settings ??= new ClrScriptCompilationSettings();
 
-            var externalTypeAnalyzer = new ExternalTypeAnalyzer(settings);
-            externalTypeAnalyzer.SetInType(typeof(TIn));
-
+            var typeManager = new TypeManager();
+            var inType = typeof(TIn);
             var allErrors = new List<ClrScriptCompileError>();
             var lexer = new ClrScriptLexer(source);
             var tokens = lexer.Tokenize();
@@ -72,8 +75,8 @@ namespace ClrScript
             var parseResult = parser.Parse();
 
             var symbolTable = new SymbolTable();
-            var shapeTable = new ShapeTable(externalTypeAnalyzer.InType.ClrType);
-            var analyzer = new AnalyzerVisitor(symbolTable, externalTypeAnalyzer, shapeTable, allErrors);
+            var shapeTable = new ShapeTable(inType);
+            var analyzer = new AnalyzerVisitor(symbolTable, typeManager, shapeTable, inType, allErrors);
 
             foreach (var statement in parseResult)
             {
@@ -84,7 +87,7 @@ namespace ClrScript
             var warnings = allErrors.Where(e => e.IsWarning).Reverse().ToArray();
 
             return new ClrScriptIR<TIn>(errors, parseResult, warnings, symbolTable, shapeTable,
-                settings, externalTypeAnalyzer);
+                settings, typeManager, inType);
         }
     }
 }

@@ -14,6 +14,7 @@ using ClrScript.Interop;
 using ClrScript.Runtime;
 using ClrScript.Elements.Statements;
 using ClrScript.Visitation.Compilation;
+using ClrScript.TypeManagement;
 
 namespace ClrScript
 {
@@ -275,11 +276,12 @@ namespace ClrScript
                 .GetMethod(nameof(DynamicOperations.Call)), null);
         }
 
-        public void EmitMemberAccess(ShapeInfo objShapeInfo, string memberName, ShapeInfo memberShapeInfo)
+        public void EmitMemberAccess(ShapeInfo objShapeInfo, string memberName, ShapeInfo memberShapeInfo, TypeManager typeManager)
         {
             if (memberShapeInfo is UnknownShape || objShapeInfo is UnknownShape)
             {
                 Emit(OpCodes.Ldstr, memberName);
+                Emit(OpCodes.Ldarg_2); // type manager
                 EmitCall(OpCodes.Call, typeof(DynamicOperations)
                         .GetMethod(nameof(DynamicOperations.MemberAccess)), null);
 
@@ -287,28 +289,33 @@ namespace ClrScript
             }
 
             var parentType = objShapeInfo.InferredType;
+            var typeInfo = typeManager.GetTypeInfo(parentType);
 
-            if (Util.GetFieldAccountForNameOverride(parentType, memberName) is FieldInfo fieldInfo &&
-                fieldInfo.FieldType.IsAssignableFrom(memberShapeInfo.InferredType))
+            if (typeInfo != null)
             {
-                Emit(OpCodes.Ldfld, fieldInfo);
-                return;
-            }
+                var member = typeInfo.GetMember(memberName);
 
-            if (Util.GetPropertyAccountForNameOverride(parentType, memberName) is PropertyInfo propInfo
-                && propInfo.PropertyType.IsAssignableFrom(memberShapeInfo.InferredType))
-            {
-                Emit(OpCodes.Callvirt, propInfo.GetGetMethod());
-                return;
-            }
+                if (member is FieldInfo field)
+                {
+                    Emit(OpCodes.Ldfld, field);
+                    return;
+                }
 
-            if (Util.GetMethodAccountForNameOverride(parentType, memberName) is MethodInfo methodInfo)
-            {
-                CompilerStack.Push(methodInfo);
-                return;
+                if (member is PropertyInfo property)
+                {
+                    Emit(OpCodes.Callvirt, property.GetGetMethod());
+                    return;
+                }
+
+                if (member is MethodInfo method)
+                {
+                    CompilerStack.Push(method);
+                    return;
+                }
             }
 
             Emit(OpCodes.Ldstr, memberName);
+            Emit(OpCodes.Ldarg_2); // type manager
             EmitCall(OpCodes.Call, typeof(DynamicOperations)
                 .GetMethod(nameof(DynamicOperations.MemberAccess)), null);
         }
@@ -324,8 +331,8 @@ namespace ClrScript
             }
             else if (rootAccess.AccessType == RootMemberAccessType.External)
             {
-                var member = context.ExternalTypes.InType
-                    .FindMemberByName(rootAccess.Name.Value).MemberInfo;
+                var typeInfo = context.TypeManager.GetTypeInfo(context.InType);
+                var member = typeInfo.GetMember(rootAccess.Name.Value);
 
                 EmitAssign(emitValue, () => Emit(OpCodes.Ldarg_1),
                     member, valueShape);

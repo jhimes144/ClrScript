@@ -1,6 +1,7 @@
 ﻿using ClrScript.Interop;
 using ClrScript.Lexer.TokenReaders;
 using ClrScript.Runtime.Builtins;
+using ClrScript.TypeManagement;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -169,7 +170,7 @@ namespace ClrScript.Runtime
             }
         }
 
-        public static object MemberAccess(object instance, string memberName)
+        public static object MemberAccess(object instance, string memberName, TypeManager typeManager)
         {
             var type = instance.GetTypeIncludeNull();
 
@@ -178,28 +179,29 @@ namespace ClrScript.Runtime
                 return ((ClrScriptObject)instance).DynGet(memberName);
             }
 
-            var field = Util.GetFieldAccountForNameOverride(type, memberName);
+            var typeInfo = typeManager.GetTypeInfo(type);
 
-            if (field != null)
+            if (typeInfo != null)
             {
-                return field.GetValue(instance);
+                var member = typeInfo.GetMember(memberName);
+
+                if (member is FieldInfo field)
+                {
+                    return field.GetValue(instance);
+                }
+
+                if (member is PropertyInfo property)
+                {
+                    return property.GetValue(instance);
+                }
+
+                if (member is MethodInfo method)
+                {
+                    return new DynMethodCallInfo(instance, method);
+                }
             }
 
-            var prop = Util.GetPropertyAccountForNameOverride(type, memberName);
-
-            if (prop != null)
-            {
-                return prop.GetValue(instance);
-            }
-
-            var method = Util.GetMethodAccountForNameOverride(type, memberName);
-
-            if (method != null)
-            {
-                return new DynMethodCallInfo(instance, method);
-            }
-
-            throw new ClrScriptRuntimeException($"Cannot access member on '{memberName}' on '{type}'.");
+            return null;
         }
 
         public static object Call(object methodData, object[] args)
@@ -265,14 +267,14 @@ namespace ClrScript.Runtime
             }
         }
 
-        public static DynMethodCallInfo CreateDynCallInfo(object instance, string methodName)
+        public static DynMethodCallInfo CreateDynCallInfo(object instance, string methodName, TypeManager typeManager)
         {
             var type = instance.GetTypeIncludeNull();
-            var method = Util.GetMethodAccountForNameOverride(type, methodName);
+            var method = typeManager.GetTypeInfo(type).GetMember(methodName) as MethodInfo;
 
             if (method == null)
             {
-                throw new ClrScriptRuntimeException($"Cannot access member on '{methodName}' on '{type}'.");
+                throw new ClrScriptRuntimeException($"'{methodName}' is not callable on '{type}'.");
             }
 
             return new DynMethodCallInfo(instance, method);

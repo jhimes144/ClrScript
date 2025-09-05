@@ -13,7 +13,6 @@ namespace ClrScript.Visitation
         void VisitGrouping(Grouping expr);
         void VisitLiteral(Literal expr);
         void VisitUnary(Unary expr);
-        void VisitPostfixUnary(PostfixUnary expr);
         void VisitMemberRootAccess(MemberRootAccess member);
         void VisitLogical(Logical logical);
         void VisitLambda(Lambda lambda);
@@ -21,5 +20,6 @@ namespace ClrScript.Visitation
         void VisitObjectLiteral(ObjectLiteral objLiteral);
         void VisitMemberAccess(MemberAccess memberAccess);
         void VisitCall(Call call);
+        void VisitInterpolatedString(InterpolatedStr str);
     }
 }

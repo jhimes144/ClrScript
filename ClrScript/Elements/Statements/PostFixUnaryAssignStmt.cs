@@ -1,3 +1,4 @@
+using ClrScript.Elements.Expressions;
 using ClrScript.Lexer;
 using ClrScript.Visitation;
 using System;
@@ -6,24 +7,24 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ClrScript.Elements.Expressions
+namespace ClrScript.Elements.Statements
 {
-    class PostfixUnary : Expr
+    class PostFixUnaryAssignStmt : Stmt
     {
         public Expr Left { get; }
         public Token Op { get; }
 
         public override Token StartLocation => Left.StartLocation;
 
-        public PostfixUnary(Expr left, Token op)
+        public PostFixUnaryAssignStmt(Expr left, Token op)
         {
             Left = left;
             Op = op;
         }
 
-        public override void Accept(IExpressionVisitor visitor)
+        public override void Accept(IStatementVisitor visitor)
         {
-            visitor.VisitPostfixUnary(this);
+            visitor.VisitPostFixUnaryAssignStmt(this);
         }
     }
 }

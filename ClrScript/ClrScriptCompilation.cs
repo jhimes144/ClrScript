@@ -11,16 +11,19 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using ClrScript.TypeManagement;
 
 namespace ClrScript
 {
     public class ClrScriptCompilation<TIn> where TIn : class
     {
         internal Type BuiltRootType { get; }
+        internal TypeManager TypeManager { get; }
 
-        internal ClrScriptCompilation(Type builtRootType)
+        internal ClrScriptCompilation(Type builtRootType, TypeManager typeManager)
         {
             BuiltRootType = builtRootType;
+            TypeManager = typeManager;
         }
 
         public static ClrScriptCompilation<TIn> Compile(ClrScriptIR<TIn> iR)
@@ -37,17 +40,18 @@ namespace ClrScript
 
             var assemblyName = new AssemblyName($"ClrScriptDynamic-{Guid.NewGuid()}");
             var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.RunAndCollect);
-            var clankModule = assemblyBuilder.DefineDynamicModule("ClrScriptModule");
-            var defaultClrScript = clankModule.DefineType("Default", TypeAttributes.Public);
+            var clrScriptModule = assemblyBuilder.DefineDynamicModule("ClrScriptModule");
+            var defaultClrScript = clrScriptModule.DefineType("Default", TypeAttributes.Public);
             defaultClrScript.AddInterfaceImplementation(typeof(IClrScriptEntry<TIn>));
 
-            iR.ShapeTable.GenerateRuntimeTypes(clankModule);
+            iR.ShapeTable.GenerateRuntimeTypes(clrScriptModule);
 
             var compileContext = new CompilationContext(iR.Settings,
                 iR.SymbolTable,
                 iR.ShapeTable,
-                iR.ExternalTypeAnalyzer,
-                defaultClrScript);
+                iR.TypeManager,
+                defaultClrScript,
+                iR.InType);
 
             foreach (var statement in iR.Statements)
             {
@@ -63,7 +67,7 @@ namespace ClrScript
             }
 
             var clrType = defaultClrScript.CreateType();
-            return new ClrScriptCompilation<TIn>(clrType);
+            return new ClrScriptCompilation<TIn>(clrType, iR.TypeManager);
         }
     }
 }

@@ -1,7 +1,9 @@
 ﻿using ClrScript.Interop;
+using ClrScript.TypeManagement;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,7 +18,7 @@ namespace ClrScript.Visitation.Compilation
 
         public ExpressionCompiler ExpressionCompiler { get; }
 
-        public ExternalTypeAnalyzer ExternalTypes { get; }
+        public TypeManager TypeManager { get; }
 
         public SymbolTable SymbolTable { get; }
 
@@ -32,17 +34,31 @@ namespace ClrScript.Visitation.Compilation
 
         public bool ReturnPrepped { get; set; }
 
+        public MethodInfo PrintStmtMethod { get; }
+
+        public Type InType { get; }
+
         public CompilationContext(ClrScriptCompilationSettings settings,
             SymbolTable symbolTable,
             ShapeTable shapeTable,
-            ExternalTypeAnalyzer externalTypes,
-            TypeBuilder rootType)
+            TypeManager typeManager,
+            TypeBuilder rootType,
+            Type inType)
         {
+            typeManager.ValidateType(inType);
+
+            if (typeof(IImplementsPrintStmt).IsAssignableFrom(inType))
+            {
+                PrintStmtMethod = typeof(IImplementsPrintStmt).GetMethod
+                    (nameof(IImplementsPrintStmt.Print), new Type[] { typeof(object) });
+            }
+
+            InType = inType;
             RootClrScriptTypeBuilder = rootType;
 
             ShapeTable = shapeTable;
             SymbolTable = symbolTable;
-            ExternalTypes = externalTypes;
+            TypeManager = typeManager;
             Root = new ClrScriptRoot(this);
             CurrentEnv = Root;
             Modules = new List<ClrScriptModule>();

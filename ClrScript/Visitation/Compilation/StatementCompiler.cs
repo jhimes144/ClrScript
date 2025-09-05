@@ -1,5 +1,7 @@
 ﻿using ClrScript.Elements.Expressions;
 using ClrScript.Elements.Statements;
+using ClrScript.Runtime;
+using ClrScript.Runtime.Builtins;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -138,11 +140,11 @@ namespace ClrScript.Visitation.Compilation
         {
             var generator = _context.CurrentEnv.Generator;
 
-            if (_context.ExternalTypes.PrintStmtMethod != null)
+            if (_context.PrintStmtMethod != null)
             {
                 generator.Emit(OpCodes.Ldarg_1);
                 printStmt.Expression.Accept(_context.ExpressionCompiler);
-                generator.EmitCall(OpCodes.Callvirt, _context.ExternalTypes.PrintStmtMethod, null);
+                generator.EmitCall(OpCodes.Callvirt, _context.PrintStmtMethod, null);
             }
         }
 
@@ -159,6 +161,47 @@ namespace ClrScript.Visitation.Compilation
             {
                 gen.EmitAssign(assignToMemberAccess, () => assignStmt.ExprAssignValue.Accept(_context.ExpressionCompiler),
                     _context.ShapeTable.GetShape(assignStmt.ExprAssignValue), _context);
+            }
+        }
+
+        public void VisitPostFixUnaryAssignStmt(PostFixUnaryAssignStmt postFixUnaryAssignStmt)
+        {
+            var gen = _context.CurrentEnv.Generator;
+            var shape = _context.ShapeTable.GetShape(postFixUnaryAssignStmt.Left);
+
+            void emitValue()
+            {
+                postFixUnaryAssignStmt.Left.Accept(_context.ExpressionCompiler);
+                gen.EmitBoxIfNeeded(postFixUnaryAssignStmt, postFixUnaryAssignStmt.Left, _context.ShapeTable);
+
+                if (shape.InferredType == typeof(double))
+                {
+                    gen.Emit(OpCodes.Ldc_R8, 1.0);
+                    gen.Emit(postFixUnaryAssignStmt.Op.Type == Lexer.TokenType.Increment ? OpCodes.Add : OpCodes.Sub);
+                }
+                else
+                {
+                    gen.Emit(OpCodes.Ldc_R8, 1.0);
+                    gen.Emit(OpCodes.Box, typeof(double));
+                    gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
+                        .GetMethod(postFixUnaryAssignStmt.Op.Type == Lexer.TokenType.Increment ?
+                            nameof(DynamicOperations.Add) : nameof(DynamicOperations.Subtract)), null);
+                }
+
+                // Note: Removed the Dup opcode emit as requested
+            }
+
+            if (postFixUnaryAssignStmt.Left is MemberRootAccess rootAccess)
+            {
+                gen.EmitAssign(rootAccess, emitValue, shape, _context);
+            }
+            else if (postFixUnaryAssignStmt.Left is MemberAccess memberAccess)
+            {
+                gen.EmitAssign(memberAccess, emitValue, shape, _context);
+            }
+            else
+            {
+                throw new NotSupportedException();
             }
         }
     }

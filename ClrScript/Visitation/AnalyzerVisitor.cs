@@ -2,10 +2,12 @@
 using ClrScript.Elements.Statements;
 using ClrScript.Interop;
 using ClrScript.Runtime.Builtins;
+using ClrScript.TypeManagement;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -15,18 +17,21 @@ namespace ClrScript.Visitation
     {
         readonly SymbolTable _symbolTable;
         readonly List<ClrScriptCompileError> _errors;
-        readonly ExternalTypeAnalyzer _externalTypeAnalyzer;
+        readonly TypeManager _typeManager;
         readonly ShapeTable _shapeTable;
+        readonly Type _inType;
 
         public AnalyzerVisitor(SymbolTable symbolTable,
-            ExternalTypeAnalyzer externalTypeAnalyzer,
+            TypeManager typeManager,
             ShapeTable shapeTable,
+            Type inType,
             List<ClrScriptCompileError> errors)
         {
             _errors = errors;
+            _inType = inType;
             _shapeTable = shapeTable;
+            _typeManager = typeManager;
             _symbolTable = symbolTable;
-            _externalTypeAnalyzer = externalTypeAnalyzer;
             _symbolTable.BeginScope(ScopeKind.Root);
         }
 
@@ -51,20 +56,28 @@ namespace ClrScript.Visitation
                 }
                 else
                 {
-                    var externalMember = _externalTypeAnalyzer.InType.FindMemberByName(rootAccess.Name.Value);
+                    var externalMember = _typeManager.GetTypeInfo(_inType)
+                        .GetMember(rootAccess.Name.Value);
 
                     if (externalMember != null)
                     {
-                        if (externalMember is ExternalTypeProperty prop)
+                        if (externalMember is PropertyInfo prop)
                         {
-                            if (prop.Property.GetSetMethod() == null)
+                            if (prop.GetSetMethod() == null)
                             {
                                 _errors.Add(new ClrScriptCompileError($"'{rootAccess.Name.Value}' is read-only.", rootAccess));
                                 return;
                             }
 
                             rootAccess.AccessType = RootMemberAccessType.External;
-                            _shapeTable.SetShape(rootAccess, new TypeShape(prop.Property.PropertyType));
+                            _shapeTable.SetShape(rootAccess, new TypeShape(prop.PropertyType));
+                            return;
+                        }
+
+                        if (externalMember is FieldInfo field)
+                        {
+                            rootAccess.AccessType = RootMemberAccessType.External;
+                            _shapeTable.SetShape(rootAccess, new TypeShape(field.FieldType));
                             return;
                         }
                     }
@@ -231,43 +244,43 @@ namespace ClrScript.Visitation
             }
             else
             {
-                var externalMember = _externalTypeAnalyzer.InType.FindMemberByName(member.Name.Value);
+                var externalMember = _typeManager.GetTypeInfo(_inType)
+                        .GetMember(member.Name.Value);
 
                 if (externalMember != null)
                 {
-                    if (externalMember is ExternalTypeProperty prop)
+                    if (externalMember is PropertyInfo prop)
                     {
-                        if (prop.Property.GetGetMethod() == null)
+                        if (prop.GetGetMethod() == null)
                         {
                             _errors.Add(new ClrScriptCompileError($"'{member.Name.Value}' cannot be read.", member));
                             return;
                         }
 
                         member.AccessType = RootMemberAccessType.External;
-                        _shapeTable.SetShape(member, new TypeShape(prop.Property.PropertyType));
+                        _shapeTable.SetShape(member, new TypeShape(prop.PropertyType));
                         return;
                     }
-                    else if (externalMember is ExternalTypeField field)
+                    else if (externalMember is FieldInfo field)
                     {
                         member.AccessType = RootMemberAccessType.External;
-                        _shapeTable.SetShape(member, new TypeShape(field.Field.FieldType));
+                        _shapeTable.SetShape(member, new TypeShape(field.FieldType));
                         return;
                     }
-                    else if (externalMember is ExternalTypeMethod method)
+                    else if (externalMember is MethodInfo method)
                     {
                         member.AccessType = RootMemberAccessType.External;
-                        var methodInfo = method.Method;
                         ShapeInfo returnShape = null;
 
-                        if (methodInfo.ReturnType != null)
+                        if (method.ReturnType != null)
                         {
-                            var returnType = methodInfo.ReturnType == typeof(void) 
-                                ? typeof(DynamicNull) : methodInfo.ReturnType;
+                            var returnType = method.ReturnType == typeof(void) 
+                                ? typeof(DynamicNull) : method.ReturnType;
 
                             returnShape = new TypeShape(returnType);
                         }
 
-                        var args = methodInfo.GetParameters()
+                        var args = method.GetParameters()
                             .Select(p => new TypeShape(p.ParameterType))
                             .ToArray();
 
@@ -317,20 +330,6 @@ namespace ClrScript.Visitation
             _shapeTable.SetShape(expr, innerShape);
         }
 
-        public void VisitPostfixUnary(PostfixUnary expr)
-        {
-            expr.Left.Accept(this);
-
-            if (!(expr.Left is MemberRootAccess || expr.Left is MemberAccess))
-            {
-                _errors.Add(new ClrScriptCompileError($"The operand of an increment or decrement operator must be a variable or property.", expr));
-                return;
-            }
-
-            var innerShape = _shapeTable.GetShape(expr.Left);
-            _shapeTable.SetShape(expr, innerShape);
-        }
-
         public void VisitVarStmt(VarStmt varStmt)
         {
             var existingSymbol = _symbolTable.CurrentScope.FindSymbolGoingUp
@@ -352,7 +351,8 @@ namespace ClrScript.Visitation
                 return;
             }
 
-            var externalMember = _externalTypeAnalyzer.InType.FindMemberByName(varStmt.Name.Value);
+            var externalMember = _typeManager.GetTypeInfo(_inType)?
+                        .GetMember(varStmt.Name.Value);
 
             if (externalMember != null)
             {
@@ -385,6 +385,25 @@ namespace ClrScript.Visitation
         public void VisitPrintStmt(PrintStmt printStmt)
         {
             printStmt.Expression.Accept(this);
+        }
+
+        public void VisitPostFixUnaryAssignStmt(PostFixUnaryAssignStmt postFixUnaryAssignStmt)
+        {
+            postFixUnaryAssignStmt.Left.Accept(this);
+
+            if (!(postFixUnaryAssignStmt.Left is MemberRootAccess || postFixUnaryAssignStmt.Left is MemberAccess))
+            {
+                _errors.Add(new ClrScriptCompileError($"The operand of an increment or decrement operator must be a variable or property.", postFixUnaryAssignStmt));
+                return;
+            }
+
+            var innerShape = _shapeTable.GetShape(postFixUnaryAssignStmt.Left);
+            _shapeTable.SetShape(postFixUnaryAssignStmt, innerShape);
+        }
+
+        public void VisitInterpolatedString(InterpolatedStr str)
+        {
+            throw new NotImplementedException();
         }
     }
 }

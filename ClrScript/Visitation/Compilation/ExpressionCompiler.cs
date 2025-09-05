@@ -253,7 +253,7 @@ namespace ClrScript.Visitation.Compilation
             {
                 _context.CurrentEnv.Generator.Emit(OpCodes.Ldarg_1);
                 _context.CurrentEnv.Generator.EmitMemberAccess(_context.ShapeTable.InTypeShape,
-                    var.Name.Value, _context.ShapeTable.GetShape(var));
+                    var.Name.Value, _context.ShapeTable.GetShape(var), _context.TypeManager);
             }
             else
             {
@@ -269,7 +269,7 @@ namespace ClrScript.Visitation.Compilation
             var memberShapeInfo = _context.ShapeTable.GetShape(memberAccess);
             var objShapeInfo = _context.ShapeTable.GetShape(memberAccess.Expr);
 
-            generator.EmitMemberAccess(objShapeInfo, memberAccess.Name.Value, memberShapeInfo);
+            generator.EmitMemberAccess(objShapeInfo, memberAccess.Name.Value, memberShapeInfo, _context.TypeManager);
         }
 
         public void VisitObjectLiteral(ObjectLiteral objLiteral)
@@ -340,47 +340,6 @@ namespace ClrScript.Visitation.Compilation
             }
         }
 
-        public void VisitPostfixUnary(PostfixUnary expr)
-        {
-            var gen = _context.CurrentEnv.Generator;
-            var shape = _context.ShapeTable.GetShape(expr);
-
-            void emitValue()
-            {
-                expr.Left.Accept(this);
-                gen.EmitBoxIfNeeded(expr, expr.Left, _context.ShapeTable);
-
-                if (shape.InferredType == typeof(double))
-                {
-                    gen.Emit(OpCodes.Ldc_R8, 1.0);
-                    gen.Emit(expr.Op.Type == Lexer.TokenType.Increment ? OpCodes.Add : OpCodes.Sub);
-                }
-                else
-                {
-                    gen.Emit(OpCodes.Ldc_R8, 1.0);
-                    gen.Emit(OpCodes.Box, typeof(double));
-                    gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
-                        .GetMethod(expr.Op.Type == Lexer.TokenType.Increment ?
-                            nameof(DynamicOperations.Add) : nameof(DynamicOperations.Subtract)), null);
-                }
-
-                gen.Emit(OpCodes.Dup);
-            }
-
-            if (expr.Left is MemberRootAccess rootAccess)
-            {
-                gen.EmitAssign(rootAccess, emitValue, shape, _context);
-            }
-            else if (expr.Left is MemberAccess memberAccess)
-            {
-                gen.EmitAssign(memberAccess, emitValue, shape, _context);
-            }
-            else
-            {
-                throw new NotSupportedException();
-            }
-        }
-
         public void VisitCall(Call call)
         {
             var gen = _context.CurrentEnv.Generator;
@@ -411,6 +370,7 @@ namespace ClrScript.Visitation.Compilation
                     else
                     {
                         gen.Emit(OpCodes.Ldstr, methodInfo.Name);
+                        gen.Emit(OpCodes.Ldarg_2); // type manager
                         gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
                             .GetMethod(nameof(DynamicOperations.CreateDynCallInfo)), null);
                         gen.EmitDynamicCall(call, this, _context.ShapeTable);
@@ -443,6 +403,11 @@ namespace ClrScript.Visitation.Compilation
             {
                 gen.EmitDynamicCall(call, this, _context.ShapeTable);
             }
+        }
+
+        public void VisitInterpolatedString(InterpolatedStr str)
+        {
+            throw new NotImplementedException();
         }
     }
 }

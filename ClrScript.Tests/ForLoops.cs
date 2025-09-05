@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace ClrScript.Tests
 {
     [TestClass]
-    public class Statements
+    public class ForLoops
     {
         [TestMethod]
         public void For_Loop_Sum()
