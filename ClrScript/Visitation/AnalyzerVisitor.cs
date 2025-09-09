@@ -194,11 +194,12 @@ namespace ClrScript.Visitation
         {
             if (expr.Value == null)
             {
-                return;
+                _shapeTable.SetShape(expr, new TypeShape(typeof(DynamicNull)));
             }
-
-            _shapeTable.SetShape(expr, new TypeShape
-                (expr.Value.GetType()));
+            else
+            {
+                _shapeTable.SetShape(expr, new TypeShape(expr.Value.GetType()));
+            }
         }
 
         public void VisitLogical(Logical logical)
@@ -244,49 +245,15 @@ namespace ClrScript.Visitation
             }
             else
             {
-                var externalMember = _typeManager.GetTypeInfo(_inType)
+                var globalMember = _typeManager.GetTypeInfo(_inType)?
                         .GetMember(member.Name.Value);
 
-                if (externalMember != null)
+                if (globalMember != null)
                 {
-                    if (externalMember is PropertyInfo prop)
-                    {
-                        if (prop.GetGetMethod() == null)
-                        {
-                            _errors.Add(new ClrScriptCompileError($"'{member.Name.Value}' cannot be read.", member));
-                            return;
-                        }
-
-                        member.AccessType = RootMemberAccessType.External;
-                        _shapeTable.SetShape(member, new TypeShape(prop.PropertyType));
-                        return;
-                    }
-                    else if (externalMember is FieldInfo field)
-                    {
-                        member.AccessType = RootMemberAccessType.External;
-                        _shapeTable.SetShape(member, new TypeShape(field.FieldType));
-                        return;
-                    }
-                    else if (externalMember is MethodInfo method)
-                    {
-                        member.AccessType = RootMemberAccessType.External;
-                        ShapeInfo returnShape = null;
-
-                        if (method.ReturnType != null)
-                        {
-                            var returnType = method.ReturnType == typeof(void) 
-                                ? typeof(DynamicNull) : method.ReturnType;
-
-                            returnShape = new TypeShape(returnType);
-                        }
-
-                        var args = method.GetParameters()
-                            .Select(p => new TypeShape(p.ParameterType))
-                            .ToArray();
-
-                        _shapeTable.SetShape(member, new MethodShape(returnShape, args));
-                        return;
-                    }
+                    var shape = memberToShape(globalMember);
+                    _shapeTable.SetShape(member, shape);
+                    member.AccessType = RootMemberAccessType.External;
+                    return;
                 }
             }
 
@@ -302,20 +269,27 @@ namespace ClrScript.Visitation
             if (exprShape is ClrScriptObjectShape objShape)
             {
                 var propName = memberAccess.Name.Value;
+
                 if (objShape.ShapeInfoByPropName.TryGetValue(propName, out var propShape))
                 {
                     _shapeTable.SetShape(memberAccess, propShape);
-                }
-                else
-                {
-                    // Property doesn't exist yet, set unknown shape
-                    _shapeTable.SetShape(memberAccess, new UnknownShape());
+                    return;
                 }
             }
-            else
+            else if (exprShape is TypeShape typeShape)
             {
-                _shapeTable.SetShape(memberAccess, new UnknownShape());
+                var member = _typeManager.GetTypeInfo(typeShape.InferredType)?
+                    .GetMember(memberAccess.Name.Value);
+
+                if (member != null)
+                {
+                    var shape = memberToShape(member);
+                    _shapeTable.SetShape(memberAccess, shape);
+                    return;
+                }
             }
+
+            _shapeTable.SetShape(memberAccess, new UnknownShape());
         }
 
         public void VisitReturnStmt(ReturnStmt returnStmt)
@@ -404,6 +378,43 @@ namespace ClrScript.Visitation
         public void VisitInterpolatedString(InterpolatedStr str)
         {
             throw new NotImplementedException();
+        }
+
+        ShapeInfo memberToShape(MemberInfo memberInfo)
+        {
+            if (memberInfo is PropertyInfo prop)
+            {
+                if (prop.GetGetMethod() == null)
+                {
+                    return UnknownShape.Instance;
+                }
+
+                return new TypeShape(prop.PropertyType);
+            }
+            else if (memberInfo is FieldInfo field)
+            {
+                return new TypeShape(field.FieldType);
+            }
+            else if (memberInfo is MethodInfo method)
+            {
+                ShapeInfo returnShape = null;
+
+                if (method.ReturnType != null)
+                {
+                    var returnType = method.ReturnType == typeof(void)
+                        ? typeof(DynamicNull) : method.ReturnType;
+
+                    returnShape = new TypeShape(returnType);
+                }
+
+                var args = method.GetParameters()
+                    .Select(p => new TypeShape(p.ParameterType))
+                    .ToArray();
+
+                return new MethodShape(returnShape, args);
+            }
+
+            return UnknownShape.Instance;
         }
     }
 }

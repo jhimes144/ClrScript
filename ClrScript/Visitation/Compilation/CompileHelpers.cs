@@ -1,5 +1,6 @@
 ﻿using ClrScript.Elements;
 using ClrScript.Elements.Expressions;
+using ClrScript.Interop;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,9 +11,20 @@ namespace ClrScript.Visitation.Compilation
 {
     static class CompileHelpers
     {
-        public static bool GetCanBeOptimized(MethodInfo methodInfo, Call call, ShapeTable shapeTable)
+        public static bool GetCanBeOptimized(MethodInfo methodInfo, Call call, ShapeTable shapeTable, out ParameterInfo[] correctedParams)
         {
             var args = methodInfo.GetParameters();
+
+            if (methodInfo.IsStatic)
+            {
+                // method is an extension. we already know that the instance object
+                // is of the correct shape, otherwise we wouldn't have a method info to work with.
+                var nArgs = new ParameterInfo[args.Length - 1];
+                args.AsSpan(1).CopyTo(nArgs);
+                args = nArgs;
+            }
+
+            correctedParams = args;
 
             if (args.Length != call.Arguments.Count)
             {
@@ -30,7 +42,8 @@ namespace ClrScript.Visitation.Compilation
 
                 var methodArgType = args[i].ParameterType;
 
-                if (!methodArgType.IsAssignableFrom(argShape.InferredType))
+                if (!methodArgType.IsAssignableFrom(argShape.InferredType) 
+                    && !InteropHelpers.GetIsSupportedNumericInteropType(methodArgType))
                 {
                     return false;
                 }
@@ -53,7 +66,7 @@ namespace ClrScript.Visitation.Compilation
                 return false;
             }
 
-            return GetCanBeOptimized(invokeMethod, call, shapeTable);
+            return GetCanBeOptimized(invokeMethod, call, shapeTable, out _);
         }
     }
 }

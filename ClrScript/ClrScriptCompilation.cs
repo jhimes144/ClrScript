@@ -19,11 +19,14 @@ namespace ClrScript
     {
         internal Type BuiltRootType { get; }
         internal TypeManager TypeManager { get; }
+        
+        public bool DynamicOperationsEmitted { get; }
 
-        internal ClrScriptCompilation(Type builtRootType, TypeManager typeManager)
+        internal ClrScriptCompilation(Type builtRootType, TypeManager typeManager, bool dynamicOperationsEmitted)
         {
             BuiltRootType = builtRootType;
             TypeManager = typeManager;
+            DynamicOperationsEmitted = dynamicOperationsEmitted;
         }
 
         public static ClrScriptCompilation<TIn> Compile(ClrScriptIR<TIn> iR)
@@ -35,7 +38,8 @@ namespace ClrScript
 
             if (iR.Errors.Count > 0)
             {
-                throw new ClrScriptCompileException("Cannot compile ir, the build contains errors.");
+                throw new ClrScriptCompileException("Cannot compile ir, the build contains errors." + Environment.NewLine 
+                    + string.Join(Environment.NewLine, iR.Errors.Select(e => e.Message)));
             }
 
             var assemblyName = new AssemblyName($"ClrScriptDynamic-{Guid.NewGuid()}");
@@ -67,7 +71,7 @@ namespace ClrScript
             }
 
             var clrType = defaultClrScript.CreateType();
-            return new ClrScriptCompilation<TIn>(clrType, iR.TypeManager);
+            return new ClrScriptCompilation<TIn>(clrType, iR.TypeManager, compileContext.DynamicOperationsEmitted);
         }
     }
 }

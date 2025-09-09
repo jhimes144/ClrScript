@@ -1,5 +1,6 @@
 ﻿using ClrScript.Elements.Expressions;
 using ClrScript.Elements.Statements;
+using ClrScript.Interop;
 using ClrScript.Runtime;
 using ClrScript.Runtime.Builtins;
 using System;
@@ -68,6 +69,12 @@ namespace ClrScript.Visitation.Compilation
             
             if (inferredType?.IsValueType ?? false)
             {
+                if (InteropHelpers.GetIsSupportedNumericInteropTypeNeedingConversion(inferredType))
+                {
+                    // emit from before would of already converted the value.
+                    inferredType = typeof(double);
+                }
+                
                 _context.CurrentEnv.Generator.Emit(OpCodes.Box, inferredType);
             }
             
@@ -183,6 +190,7 @@ namespace ClrScript.Visitation.Compilation
                 {
                     gen.Emit(OpCodes.Ldc_R8, 1.0);
                     gen.Emit(OpCodes.Box, typeof(double));
+                    _context.DynamicOperationsEmitted = true;
                     gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
                         .GetMethod(postFixUnaryAssignStmt.Op.Type == Lexer.TokenType.Increment ?
                             nameof(DynamicOperations.Add) : nameof(DynamicOperations.Subtract)), null);

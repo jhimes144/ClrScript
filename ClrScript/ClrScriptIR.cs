@@ -2,6 +2,7 @@
 using ClrScript.Interop;
 using ClrScript.Lexer;
 using ClrScript.Parser;
+using ClrScript.Runtime;
 using ClrScript.TypeManagement;
 using ClrScript.Visitation;
 using System;
@@ -66,6 +67,16 @@ namespace ClrScript
             settings ??= new ClrScriptCompilationSettings();
 
             var typeManager = new TypeManager();
+            typeManager.ValidateType(typeof(StringOperations), true);
+
+            if (settings.ExtensionTypes != null)
+            {
+                foreach (var type in settings.ExtensionTypes)
+                {
+                    typeManager.ValidateType(type, true);
+                }
+            }
+
             var inType = typeof(TIn);
             var allErrors = new List<ClrScriptCompileError>();
             var lexer = new ClrScriptLexer(source);

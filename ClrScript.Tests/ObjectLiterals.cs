@@ -25,6 +25,7 @@ namespace ClrScript.Tests
             var context = ClrScriptContext<object>.Compile(code);
             var result = context.Run();
             Assert.AreEqual("Chris", result);
+            Assert.AreEqual(false, context.DynamicOperationsEmitted);
         }
 
         [TestMethod]
@@ -59,6 +60,7 @@ namespace ClrScript.Tests
             var context = ClrScriptContext<object>.Compile(code);
             var result = context.Run();
             Assert.AreEqual("Chris", result);
+            Assert.AreEqual(false, context.DynamicOperationsEmitted);
         }
 
         [TestMethod]
@@ -88,6 +90,73 @@ namespace ClrScript.Tests
             var context = ClrScriptContext<object>.Compile(code);
             var result = context.Run();
             Assert.AreEqual("Billy", result);
+            Assert.AreEqual(true, context.DynamicOperationsEmitted);
+        }
+
+        [TestMethod]
+        public void Creation_Unknown_Shapes_Null()
+        {
+            var code = @"
+                
+                var test;
+
+                if (false)
+                {
+                    test = 12;
+                }
+                else
+                {
+                    test = null;
+                }
+
+                var object = {
+                   name: test,
+                   age: 32
+                };
+
+                return object.name;
+            ";
+
+            var context = ClrScriptContext<object>.Compile(code);
+            var result = context.Run();
+            Assert.AreEqual(null, result);
+            Assert.AreEqual(true, context.DynamicOperationsEmitted);
+        }
+
+        [TestMethod]
+        public void Missing_Property_Evaluates_Null()
+        {
+            var code = @"
+                var object = {
+                   name: ""Tom"",
+                   age: 32
+                };
+
+                return object.occupation;
+            ";
+
+            var context = ClrScriptContext<object>.Compile(code);
+            var result = context.Run();
+            Assert.AreEqual(null, result);
+            Assert.AreEqual(true, context.DynamicOperationsEmitted);
+        }
+
+        [TestMethod]
+        public void Property_Evaluates_Null()
+        {
+            var code = @"
+                var object = {
+                   name: ""Tom"",
+                   age: null
+                };
+
+                return object.age;
+            ";
+
+            var context = ClrScriptContext<object>.Compile(code);
+            var result = context.Run();
+            Assert.AreEqual(null, result);
+            Assert.AreEqual(false, context.DynamicOperationsEmitted);
         }
 
         // test for null asign

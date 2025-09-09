@@ -26,6 +26,8 @@ namespace ClrScript
         readonly IClrScriptEntry<TIn> _entry;
         readonly TypeManager _typeManager;
 
+        public bool DynamicOperationsEmitted { get; }
+
         public ClrScriptContext(ClrScriptCompilation<TIn> compilation)
         {
             if (compilation == null)
@@ -33,6 +35,7 @@ namespace ClrScript
                 throw new ArgumentNullException(nameof(compilation));
             }
 
+            DynamicOperationsEmitted = compilation.DynamicOperationsEmitted;
             _typeManager = compilation.TypeManager;
             _entry = (IClrScriptEntry<TIn>)Activator.CreateInstance(compilation.BuiltRootType);
         }

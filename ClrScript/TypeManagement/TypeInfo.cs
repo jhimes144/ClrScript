@@ -1,5 +1,7 @@
-﻿using System;
+﻿using ClrScript.Runtime.Builtins;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -9,67 +11,13 @@ namespace ClrScript.TypeManagement
 {
     public class TypeInfo
     {
-        readonly IReadOnlyDictionary<string, MemberInfo> _membersByName;
+        readonly Dictionary<string, MemberInfo> _membersByName;
 
         public Type Type { get; }
 
-        internal TypeInfo(TypeManager manager, Type type)
+        internal TypeInfo(Type type, Dictionary<string, MemberInfo> membersByName)
         {
             Type = type;
-            var membersByName = new Dictionary<string, MemberInfo>();
-
-            foreach (var member in type.GetMembers())
-            {
-                var atrib = member.GetCustomAttribute<ClrScriptMemberAttribute>();
-
-                if (atrib == null)
-                {
-                    continue;
-                }
-
-                if (member is PropertyInfo prop)
-                {
-                    manager.ValidateType(prop.PropertyType);
-                }
-                else if (member is FieldInfo field)
-                {
-                    if (field.IsStatic)
-                    {
-                        throw new ClrScriptInteropException($"'{type}' -> '{field.Name}' cannot be used as" +
-                            $" a ClrScript field. Static fields are not supported.");
-                    }
-
-                    manager.ValidateType(field.FieldType);
-                }
-                else if (member is MethodInfo method)
-                {
-                    if (method.IsGenericMethod)
-                    {
-                        throw new ClrScriptInteropException($"'{type}' -> '{method.Name}' cannot be used as" +
-                            $" a ClrScript method because generics are not supported.");
-                    }
-
-                    if (method.IsStatic)
-                    {
-                        throw new ClrScriptInteropException($"'{type}' -> '{method.Name}' cannot be used as" +
-                            $" a ClrScript method. Static methods are not supported.");
-                    }
-
-                    if (method.ReturnType != typeof(void))
-                    {
-                        manager.ValidateType(method.ReturnType);
-                    }
-
-                    foreach (var paramInfo in method.GetParameters())
-                    {
-                        manager.ValidateType(paramInfo.ParameterType);
-                    }
-                }
-
-                var realName = getMemberName(member.Name, atrib.NameOverride, atrib.ConvertToCamelCase);
-                membersByName[realName] = member;
-            }
-
             _membersByName = membersByName;
         }
 
@@ -78,18 +26,18 @@ namespace ClrScript.TypeManagement
             return _membersByName.GetValueOrDefault(name);
         }
 
-        static string getMemberName(string memberName, string nameOverride, bool convertToCamel)
+        public void OverlayExtensions(IReadOnlyList<MethodInfo> extensions)
         {
-            if (convertToCamel)
+            foreach (var extensionMethod in extensions)
             {
-                memberName = Util.ConvertStrToCamel(memberName);
-            }
-            else if (!string.IsNullOrWhiteSpace(nameOverride))
-            {
-                memberName = nameOverride;
-            }
+                var parameters = extensionMethod.GetParameters();
+                var memberAtrib = extensionMethod.GetCustomAttribute<ClrScriptMemberAttribute>();
 
-            return memberName;
+                if (parameters[0].ParameterType == Type)
+                {
+                    _membersByName[memberAtrib.GetMemberName(extensionMethod.Name)] = extensionMethod;
+                }
+            }
         }
     }
 }

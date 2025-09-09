@@ -170,6 +170,8 @@ namespace ClrScript.Visitation
     class UnknownShape : ShapeInfo
     {
         public override Type InferredType => typeof(object);
+
+        public static UnknownShape Instance { get; } = new UnknownShape();
     }
 
     class TypeShape : ShapeInfo

@@ -36,6 +36,8 @@ namespace ClrScript.Visitation.Compilation
 
         public MethodInfo PrintStmtMethod { get; }
 
+        public bool DynamicOperationsEmitted { get; set; }
+
         public Type InType { get; }
 
         public CompilationContext(ClrScriptCompilationSettings settings,

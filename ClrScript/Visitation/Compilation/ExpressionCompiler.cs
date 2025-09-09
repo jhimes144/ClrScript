@@ -1,4 +1,5 @@
 ﻿using ClrScript.Elements.Expressions;
+using ClrScript.Interop;
 using ClrScript.Lexer.TokenReaders;
 using ClrScript.Runtime;
 using ClrScript.Runtime.Builtins;
@@ -51,6 +52,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     else
                     {
+                        _context.DynamicOperationsEmitted = true;
                         gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
                             .GetMethod(nameof(DynamicOperations.Add)), null);
                     }
@@ -62,6 +64,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     else
                     {
+                        _context.DynamicOperationsEmitted = true;
                         gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
                             .GetMethod(nameof(DynamicOperations.Subtract)), null);
                     }
@@ -73,6 +76,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     else
                     {
+                        _context.DynamicOperationsEmitted = true;
                         gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
                                 .GetMethod(nameof(DynamicOperations.Multiply)), null);
                     }
@@ -84,6 +88,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     else
                     {
+                        _context.DynamicOperationsEmitted = true;
                         gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
                             .GetMethod(nameof(DynamicOperations.Divide)), null);
                     }
@@ -95,6 +100,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     else
                     {
+                        _context.DynamicOperationsEmitted = true;
                         gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
                             .GetMethod(nameof(DynamicOperations.EqualEqual)), null);
                     }
@@ -108,6 +114,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     else
                     {
+                        _context.DynamicOperationsEmitted = true;
                         gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
                             .GetMethod(nameof(DynamicOperations.EqualEqual)), null);
                         gen.Emit(OpCodes.Ldc_I4_0);
@@ -121,6 +128,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     else
                     {
+                        _context.DynamicOperationsEmitted = true;
                         gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
                             .GetMethod(nameof(DynamicOperations.GreaterThan)), null);
                     }
@@ -132,6 +140,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     else
                     {
+                        _context.DynamicOperationsEmitted = true;
                         gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
                             .GetMethod(nameof(DynamicOperations.LessThan)), null);
                     }
@@ -145,6 +154,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     else
                     {
+                        _context.DynamicOperationsEmitted = true;
                         gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
                             .GetMethod(nameof(DynamicOperations.GreaterThanOrEqual)), null);
                     }
@@ -158,6 +168,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     else
                     {
+                        _context.DynamicOperationsEmitted = true;
                         gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
                             .GetMethod(nameof(DynamicOperations.LessThanOrEqual)), null);
                     }
@@ -253,7 +264,7 @@ namespace ClrScript.Visitation.Compilation
             {
                 _context.CurrentEnv.Generator.Emit(OpCodes.Ldarg_1);
                 _context.CurrentEnv.Generator.EmitMemberAccess(_context.ShapeTable.InTypeShape,
-                    var.Name.Value, _context.ShapeTable.GetShape(var), _context.TypeManager);
+                    var.Name.Value, _context.ShapeTable.GetShape(var), _context);
             }
             else
             {
@@ -269,7 +280,7 @@ namespace ClrScript.Visitation.Compilation
             var memberShapeInfo = _context.ShapeTable.GetShape(memberAccess);
             var objShapeInfo = _context.ShapeTable.GetShape(memberAccess.Expr);
 
-            generator.EmitMemberAccess(objShapeInfo, memberAccess.Name.Value, memberShapeInfo, _context.TypeManager);
+            generator.EmitMemberAccess(objShapeInfo, memberAccess.Name.Value, memberShapeInfo, _context);
         }
 
         public void VisitObjectLiteral(ObjectLiteral objLiteral)
@@ -313,6 +324,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     else
                     {
+                        _context.DynamicOperationsEmitted = true;
                         _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(DynamicOperations)
                             .GetMethod(nameof(DynamicOperations.UnaryMinus)), null);
                     }
@@ -326,6 +338,7 @@ namespace ClrScript.Visitation.Compilation
                     }
                     else
                     {
+                        _context.DynamicOperationsEmitted = true;
                         _context.CurrentEnv.Generator.EmitCall(OpCodes.Call, typeof(DynamicOperations)
                             .GetMethod(nameof(DynamicOperations.UnaryBang)), null);
                     }
@@ -353,24 +366,49 @@ namespace ClrScript.Visitation.Compilation
                 {
                     var methodInfo = gen.ConsumeCompilerStack<MethodInfo>();
                     
-                    if (CompileHelpers.GetCanBeOptimized(methodInfo, call, _context.ShapeTable))
+                    if (CompileHelpers.GetCanBeOptimized(methodInfo, call, _context.ShapeTable, out var correctedParams))
                     {
-                        foreach (var arg in call.Arguments)
+                        var methodArgs = correctedParams;
+
+                        for (var i = 0; i < methodArgs.Length; i++)
                         {
+                            var methodArgType = methodArgs[i].ParameterType;
+                            var arg = call.Arguments[i];
+
                             arg.Accept(this);
+
+                            if (InteropHelpers.GetIsSupportedNumericInteropTypeNeedingConversion(methodArgType))
+                            {
+                                gen.EmitStackDoubleToNumericValueTypeConversion(methodArgType);
+                            }
                         }
 
-                        gen.EmitCall(OpCodes.Callvirt, methodInfo, null);
+                        if (methodInfo.IsStatic)
+                        {
+                            gen.EmitCall(OpCodes.Call, methodInfo, null);
+                        }
+                        else
+                        {
+                            gen.EmitCall(OpCodes.Callvirt, methodInfo, null);
+                        }
 
                         if (methodInfo.ReturnType == typeof(void))
                         {
                             gen.Emit(OpCodes.Ldnull);
                         }
+                        else if (InteropHelpers.GetIsSupportedNumericInteropTypeNeedingConversion(methodInfo.ReturnType))
+                        {
+                            gen.Emit(OpCodes.Conv_R8);
+                        }
                     }
                     else
                     {
-                        gen.Emit(OpCodes.Ldstr, methodInfo.Name);
+                        var methodName = methodInfo.GetCustomAttribute<ClrScriptMemberAttribute>()
+                            .GetMemberName(methodInfo.Name);
+
+                        gen.Emit(OpCodes.Ldstr, methodName);
                         gen.Emit(OpCodes.Ldarg_2); // type manager
+                        _context.DynamicOperationsEmitted = true;
                         gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
                             .GetMethod(nameof(DynamicOperations.CreateDynCallInfo)), null);
                         gen.EmitDynamicCall(call, this, _context.ShapeTable);
@@ -380,9 +418,21 @@ namespace ClrScript.Visitation.Compilation
                 {
                     if (CompileHelpers.GetCanBeOptimized(methodShape.DelegateShape.InferredType, call, _context.ShapeTable))
                     {
-                        foreach (var arg in call.Arguments)
+                        var methodArgs = methodShape.DelegateShape.InferredType
+                            .GetMethod("Invoke")
+                            .GetParameters();
+
+                        for (var i = 0; i < methodArgs.Length; i++)
                         {
+                            var methodArgType = methodArgs[i].ParameterType;
+                            var arg = call.Arguments[i];
+
                             arg.Accept(this);
+
+                            if (InteropHelpers.GetIsSupportedNumericInteropTypeNeedingConversion(methodArgType))
+                            {
+                                gen.EmitStackDoubleToNumericValueTypeConversion(methodArgType);
+                            }
                         }
 
                         var invokeMethod = methodShape.InferredType.GetMethod("Invoke");
@@ -392,15 +442,21 @@ namespace ClrScript.Visitation.Compilation
                         {
                             gen.Emit(OpCodes.Ldnull);
                         }
+                        else if (InteropHelpers.GetIsSupportedNumericInteropTypeNeedingConversion(invokeMethod.ReturnType))
+                        {
+                            gen.Emit(OpCodes.Conv_R8);
+                        }
                     }
                     else
                     {
+                        _context.DynamicOperationsEmitted = true;
                         gen.EmitDynamicCall(call, this, _context.ShapeTable);
                     }
                 }
             }
             else
             {
+                _context.DynamicOperationsEmitted = true;
                 gen.EmitDynamicCall(call, this, _context.ShapeTable);
             }
         }

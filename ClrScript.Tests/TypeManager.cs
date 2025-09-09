@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace ClrScript.Tests
 {
+    [ClrScriptType]
     public class SelfReferencingType
     {
         public SelfReferencingType Reference { get; set; } = new();

@@ -44,5 +44,7 @@ namespace ClrScript
         /// to assess.
         /// </summary>
         public bool EmitDurationConstraint { get; set; }
+
+        public IReadOnlyList<Type> ExtensionTypes { get; set; }
     }
 }

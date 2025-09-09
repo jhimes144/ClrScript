@@ -151,12 +151,13 @@ namespace ClrScript.Tests
                 var url = ""https://example.com/path"";
                 
                 // Return the length of both strings combined
-                return message.Length + url.Length;
+                return message.length() + url.length();
             ";
 
             var context = ClrScriptContext<object>.Compile(code);
             var result = context.Run();
-            Assert.AreEqual(69.0, result); // Length of both strings
+            Assert.AreEqual(70d, result); // Length of both strings
+            Assert.IsFalse(context.DynamicOperationsEmitted);
         }
 
         [TestMethod]

@@ -9,6 +9,7 @@ namespace ClrScript.Runtime.Builtins
     /// <summary>
     /// Represents the type of a null value.
     /// </summary>
+    [ClrScriptType]
     public sealed class DynamicNull
     {
         /// <summary>

@@ -1,4 +1,5 @@
-﻿using ClrScript.Runtime.Builtins;
+﻿using ClrScript.Interop;
+using ClrScript.Runtime.Builtins;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,6 +22,40 @@ namespace ClrScript.Runtime
             }
 
             return obj.GetType();
+        }
+
+        public static string GetClrScriptTypeDisplay(this object obj)
+        {
+            var type = GetTypeIncludeNull(obj);
+            return GetClrScriptTypeDisplay(type);
+        }
+
+        public static string GetClrScriptTypeDisplay(this Type type)
+        {
+            if (type == typeof(string))
+            {
+                return "string";
+            }
+            else if (type == typeof(bool))
+            {
+                return "bool";
+            }
+            else if (InteropHelpers.GetIsSupportedNumericInteropType(type))
+            {
+                return "number";
+            }
+            else if (type == typeof(DynamicNull))
+            {
+                return "null";
+            }
+
+            if (typeof(IEnumerable<>).IsAssignableFrom(type))
+            {
+                var arrayType = type.GenericTypeArguments[0];
+                return GetClrScriptTypeDisplay(arrayType) + "[]";
+            }
+
+            return "object";
         }
     }
 }

@@ -252,6 +252,12 @@ namespace ClrScript
 
             if (!currentShapeT.IsValueType && previousShapeT.IsValueType)
             {
+                if (InteropHelpers.GetIsSupportedNumericInteropTypeNeedingConversion(previousShapeT))
+                {
+                    // emit from before would of already converted the value.
+                    previousShapeT = typeof(double);
+                }
+
                 Emit(OpCodes.Box, previousShapeT);
             }
         }
@@ -276,7 +282,8 @@ namespace ClrScript
                 .GetMethod(nameof(DynamicOperations.Call)), null);
         }
 
-        public void EmitMemberAccess(ShapeInfo objShapeInfo, string memberName, ShapeInfo memberShapeInfo, TypeManager typeManager)
+        public void EmitMemberAccess(ShapeInfo objShapeInfo, string memberName, ShapeInfo memberShapeInfo,
+            CompilationContext context)
         {
             if (memberShapeInfo is UnknownShape || objShapeInfo is UnknownShape)
             {
@@ -285,11 +292,12 @@ namespace ClrScript
                 EmitCall(OpCodes.Call, typeof(DynamicOperations)
                         .GetMethod(nameof(DynamicOperations.MemberAccess)), null);
 
+                context.DynamicOperationsEmitted = true;
                 return;
             }
 
             var parentType = objShapeInfo.InferredType;
-            var typeInfo = typeManager.GetTypeInfo(parentType);
+            var typeInfo = context.TypeManager.GetTypeInfo(parentType);
 
             if (typeInfo != null)
             {
@@ -318,6 +326,8 @@ namespace ClrScript
             Emit(OpCodes.Ldarg_2); // type manager
             EmitCall(OpCodes.Call, typeof(DynamicOperations)
                 .GetMethod(nameof(DynamicOperations.MemberAccess)), null);
+
+            context.DynamicOperationsEmitted = true;
         }
 
         public void EmitAssign(MemberRootAccess rootAccess, Action emitValue, ShapeInfo valueShape, CompilationContext context)

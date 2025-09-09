@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace ClrScript.Tests
 {
+    [ClrScriptType]
     public interface ITestInteropClass : IImplementsPrintStmt
     {
         [ClrScriptMember(ConvertToCamelCase = true)]

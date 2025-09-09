@@ -11,13 +11,13 @@ using System.Threading.Tasks;
 
 namespace ClrScript.Runtime
 {
-    public class DynMethodCallInfo
+    public class DynMethodInfo
     {
         public object Instance { get; }
 
         public MethodInfo Info { get; }
 
-        public DynMethodCallInfo(object instance, MethodInfo info)
+        public DynMethodInfo(object instance, MethodInfo info)
         {
             Instance = instance;
             Info = info;
@@ -26,6 +26,12 @@ namespace ClrScript.Runtime
 
     public static class DynamicOperations
     {
+        [ThreadStatic]
+        public static string _lastMemberAccessName;
+
+        [ThreadStatic]
+        public static Type _lastMemberAccessType;
+
         public static object Add(object left, object right)
         {
             if (left is double leftD && right is double rightD)
@@ -48,7 +54,7 @@ namespace ClrScript.Runtime
                 return left + rightSS;
             }
 
-            throw new ClrScriptRuntimeException($"Cannot add {left.GetTypeIncludeNull()} with {right.GetTypeIncludeNull()}.");
+            throw new ClrScriptRuntimeException($"Cannot add {left.GetClrScriptTypeDisplay()} with {right.GetClrScriptTypeDisplay()}.");
         }
 
         public static object Subtract(object left, object right)
@@ -58,7 +64,7 @@ namespace ClrScript.Runtime
                 return leftD - rightD;
             }
 
-            throw new ClrScriptRuntimeException($"Cannot subtract {left.GetTypeIncludeNull()} with {right.GetTypeIncludeNull()}.");
+            throw new ClrScriptRuntimeException($"Cannot subtract {left.GetClrScriptTypeDisplay()} with {right.GetClrScriptTypeDisplay()}.");
         }
 
         public static object Multiply(object left, object right)
@@ -68,7 +74,7 @@ namespace ClrScript.Runtime
                 return leftD * rightD;
             }
 
-            throw new ClrScriptRuntimeException($"Cannot multiply {left.GetTypeIncludeNull()} with {right.GetTypeIncludeNull()}.");
+            throw new ClrScriptRuntimeException($"Cannot multiply {left.GetClrScriptTypeDisplay()}  with  {right.GetClrScriptTypeDisplay()}.");
         }
 
         public static object Divide(object left, object right)
@@ -78,7 +84,7 @@ namespace ClrScript.Runtime
                 return leftD / rightD;
             }
 
-            throw new ClrScriptRuntimeException($"Cannot divide {left.GetTypeIncludeNull()} with {right.GetTypeIncludeNull()}.");
+            throw new ClrScriptRuntimeException($"Cannot divide {left.GetClrScriptTypeDisplay()}  with  {right.GetClrScriptTypeDisplay()}.");
         }
 
         public static bool EqualEqual(object left, object right)
@@ -99,7 +105,7 @@ namespace ClrScript.Runtime
                 return leftD > rightD;
             }
 
-            throw new ClrScriptRuntimeException($"Cannot perform operator > on {left.GetTypeIncludeNull()} with {right.GetTypeIncludeNull()}.");
+            throw new ClrScriptRuntimeException($"Cannot perform operator > on {left.GetClrScriptTypeDisplay()}  with  {right.GetClrScriptTypeDisplay()}.");
         }
 
         public static bool LessThan(object left, object right)
@@ -109,7 +115,7 @@ namespace ClrScript.Runtime
                 return leftD < rightD;
             }
 
-            throw new ClrScriptRuntimeException($"Cannot perform operator < on {left.GetTypeIncludeNull()} with {right.GetTypeIncludeNull()}.");
+            throw new ClrScriptRuntimeException($"Cannot perform operator < on {left.GetClrScriptTypeDisplay()}  with  {right.GetClrScriptTypeDisplay()}.");
         }
 
         public static bool GreaterThanOrEqual(object left, object right)
@@ -119,7 +125,7 @@ namespace ClrScript.Runtime
                 return leftD >= rightD;
             }
 
-            throw new ClrScriptRuntimeException($"Cannot perform operator >= on {left.GetTypeIncludeNull()} with {right.GetTypeIncludeNull()}.");
+            throw new ClrScriptRuntimeException($"Cannot perform operator >= on {left.GetClrScriptTypeDisplay()}  with  {right.GetClrScriptTypeDisplay()}.");
         }
 
         public static bool LessThanOrEqual(object left, object right)
@@ -129,7 +135,7 @@ namespace ClrScript.Runtime
                 return leftD <= rightD;
             }
 
-            throw new ClrScriptRuntimeException($"Cannot perform operator <= on {left.GetTypeIncludeNull()} with {right.GetTypeIncludeNull()}.");
+            throw new ClrScriptRuntimeException($"Cannot perform operator <= on {left.GetClrScriptTypeDisplay()}   with   {right.GetClrScriptTypeDisplay()}.");
         }
 
         public static object UnaryMinus(object value)
@@ -139,7 +145,7 @@ namespace ClrScript.Runtime
                 return -d;
             }
 
-            throw new ClrScriptRuntimeException($"Cannot perform unary operator - on {value.GetTypeIncludeNull()}.");
+            throw new ClrScriptRuntimeException($"Cannot perform unary operator - on {value.GetClrScriptTypeDisplay()}.");
         }
 
         public static object UnaryBang(object value)
@@ -149,7 +155,7 @@ namespace ClrScript.Runtime
                 return !b;
             }
 
-            throw new ClrScriptRuntimeException($"Cannot perform unary operator ! on {value.GetTypeIncludeNull()}.");
+            throw new ClrScriptRuntimeException($"Cannot perform unary operator ! on {value.GetClrScriptTypeDisplay()}.");
         }
 
         public static void Assign(object instance, string memberName, object value)
@@ -181,6 +187,9 @@ namespace ClrScript.Runtime
 
             var typeInfo = typeManager.GetTypeInfo(type);
 
+            _lastMemberAccessName = memberName;
+            _lastMemberAccessType = type;
+
             if (typeInfo != null)
             {
                 var member = typeInfo.GetMember(memberName);
@@ -197,7 +206,7 @@ namespace ClrScript.Runtime
 
                 if (member is MethodInfo method)
                 {
-                    return new DynMethodCallInfo(instance, method);
+                    return new DynMethodInfo(instance, method);
                 }
             }
 
@@ -219,12 +228,25 @@ namespace ClrScript.Runtime
                         (e, $"Error calling lambda method. {e.Message}");
                 }
             }
-            else if (methodData is DynMethodCallInfo dynMethodInfo)
+            else if (methodData is DynMethodInfo dynMethodInfo)
             {
                 try
                 {
-                    CheckArgs(args, dynMethodInfo.Info.GetParameters());
-                    return dynMethodInfo.Info.Invoke(dynMethodInfo.Instance, args);
+                    if (!dynMethodInfo.Info.IsStatic)
+                    {
+                        CheckArgs(args, dynMethodInfo.Info.GetParameters());
+                        return dynMethodInfo.Info.Invoke(dynMethodInfo.Instance, args);
+                    }
+                    else
+                    {
+                        // method is a clr script extension. Otherwise validation would flag it.
+                        var nArgs = new object[args.Length + 1];
+                        nArgs[0] = dynMethodInfo.Instance;
+                        args.CopyTo(nArgs, 1);
+
+                        CheckArgs(nArgs, dynMethodInfo.Info.GetParameters());
+                        return dynMethodInfo.Info.Invoke(null, nArgs);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -233,7 +255,7 @@ namespace ClrScript.Runtime
                 }
             }
 
-            throw new ClrScriptRuntimeException($"'{methodData.GetType().Name}' is not callable.");
+            throw new ClrScriptRuntimeException($"'{_lastMemberAccessName}' is not callable on '{_lastMemberAccessType.GetClrScriptTypeDisplay()}'.");
         }
 
         static void CheckArgs(object[] args, ParameterInfo[] parameters)
@@ -267,17 +289,17 @@ namespace ClrScript.Runtime
             }
         }
 
-        public static DynMethodCallInfo CreateDynCallInfo(object instance, string methodName, TypeManager typeManager)
+        public static DynMethodInfo CreateDynCallInfo(object instance, string methodName, TypeManager typeManager)
         {
             var type = instance.GetTypeIncludeNull();
             var method = typeManager.GetTypeInfo(type).GetMember(methodName) as MethodInfo;
 
             if (method == null)
             {
-                throw new ClrScriptRuntimeException($"'{methodName}' is not callable on '{type}'.");
+                throw new ClrScriptRuntimeException($"'{methodName}' is not callable on '{type.GetClrScriptTypeDisplay()}'.");
             }
 
-            return new DynMethodCallInfo(instance, method);
+            return new DynMethodInfo(instance, method);
         }
     }
 }

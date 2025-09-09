@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace ClrScript.Tests;
 
+[ClrScriptType]
 public interface ITestCallClass : IImplementsPrintStmt
 {
     [ClrScriptMember(ConvertToCamelCase = true)]
@@ -17,6 +18,9 @@ public interface ITestCallClass : IImplementsPrintStmt
 
     [ClrScriptMember(ConvertToCamelCase = true)]
     void Void();
+
+    [ClrScriptMember(ConvertToCamelCase = true)]
+    int ReturnsInt();
 }
 
 [TestClass]
@@ -34,6 +38,7 @@ public class Calls
 
         var result = context.Run(testClass.Object);
         Assert.AreEqual("hello world", result);
+        Assert.AreEqual(false, context.DynamicOperationsEmitted);
     }
 
     [TestMethod]
@@ -49,6 +54,7 @@ public class Calls
 
         var result = context.Run(testClass.Object);
         Assert.AreEqual("hello", result);
+        Assert.AreEqual(false, context.DynamicOperationsEmitted);
     }
 
     [TestMethod]
@@ -64,6 +70,7 @@ public class Calls
 
         var result = context.Run(testClass.Object);
         Assert.AreEqual(null, result);
+        Assert.AreEqual(true, context.DynamicOperationsEmitted);
     }
 
     [TestMethod]
@@ -143,6 +150,7 @@ public class Calls
 
         context.Run(testClass.Object);
         Assert.AreEqual(12, valuePassed);
+        Assert.AreEqual(false, context.DynamicOperationsEmitted);
     }
 
     [TestMethod]
@@ -168,5 +176,48 @@ public class Calls
 
         var result = context.Run(testClass.Object);
         Assert.AreEqual("hello world", result);
+        Assert.AreEqual(true, context.DynamicOperationsEmitted);
+    }
+
+    [TestMethod]
+    public void External_Call_Returning_Int_Optimized_Returns_Double()
+    {
+        var testClass = new Mock<ITestCallClass>();
+        testClass.Setup(m => m.ReturnsInt()).Returns(() => 12);
+
+        var context = ClrScriptContext<ITestCallClass>.Compile(@"
+                return returnsInt();
+            ");
+
+        var result = context.Run(testClass.Object);
+        Assert.AreEqual(12d, result);
+        Assert.AreEqual(false, context.DynamicOperationsEmitted);
+    }
+
+    [TestMethod]
+    public void External_Call_Returning_Int_Not_Optimized_Returns_Double()
+    {
+        var testClass = new Mock<ITestCallClass>();
+        testClass.Setup(m => m.ReturnsInt()).Returns(() => 12);
+
+        var context = ClrScriptContext<ITestCallClass>.Compile(@"
+                var t;
+
+                if (false)
+                {
+                    t = ""hello"";
+                }
+                else
+                {
+                    t = returnsInt();
+                }
+                
+                voidWithInt(t);
+                return t;
+            ");
+
+        var result = context.Run(testClass.Object);
+        Assert.AreEqual(12d, result);
+        Assert.AreEqual(true, context.DynamicOperationsEmitted);
     }
 }
