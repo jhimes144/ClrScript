@@ -13,6 +13,8 @@ namespace ClrScript.TypeManagement
     {
         readonly Dictionary<string, MemberInfo> _membersByName;
 
+        PropertyInfo _indexerProp;
+
         public Type Type { get; }
 
         internal TypeInfo(Type type, Dictionary<string, MemberInfo> membersByName)
@@ -24,6 +26,22 @@ namespace ClrScript.TypeManagement
         public MemberInfo GetMember(string name)
         {
             return _membersByName.GetValueOrDefault(name);
+        }
+
+        public PropertyInfo GetIndexer()
+        {
+            if (_indexerProp != null)
+            {
+                return _indexerProp;
+            }
+
+            // we only allow one indexer property
+
+            _indexerProp = _membersByName.Values
+                .FirstOrDefault(m => m is PropertyInfo prop 
+                    && prop.GetIndexParameters().Length > 0) as PropertyInfo;
+
+            return _indexerProp;
         }
 
         public void OverlayExtensions(IReadOnlyList<MethodInfo> extensions)

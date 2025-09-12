@@ -195,8 +195,6 @@ namespace ClrScript.Visitation.Compilation
                         .GetMethod(postFixUnaryAssignStmt.Op.Type == Lexer.TokenType.Increment ?
                             nameof(DynamicOperations.Add) : nameof(DynamicOperations.Subtract)), null);
                 }
-
-                // Note: Removed the Dup opcode emit as requested
             }
 
             if (postFixUnaryAssignStmt.Left is MemberRootAccess rootAccess)

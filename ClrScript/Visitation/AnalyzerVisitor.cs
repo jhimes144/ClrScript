@@ -162,11 +162,40 @@ namespace ClrScript.Visitation
                 && memberAccess.Name.Value == "add" 
                 && _shapeTable.GetShape(memberAccess.Expr) is ClrScriptArrayShape arrayShape)
             {
+                // derive shape and set it as array type
                 arrayShape.ContentShape = _shapeTable.DeriveShape(arrayShape.ContentShape,
                     _shapeTable.GetShape(call.Arguments[0]));
             }
 
             _shapeTable.SetShape(call, _shapeTable.GetShape(call.Callee));
+        }
+
+        public void VisitIndexer(Indexer indexer)
+        {
+            indexer.Callee.Accept(this);
+            indexer.Expression.Accept(this);
+
+            var calleeShape = _shapeTable.GetShape(indexer.Callee);
+
+            if (calleeShape is ClrScriptArrayShape arrayShape)
+            {
+                _shapeTable.SetShape(indexer, arrayShape.ContentShape);
+                return;
+            }
+            else if (calleeShape is TypeShape typeShape)
+            {
+                var indexerProp = _typeManager
+                    .GetTypeInfo(typeShape.InferredType)?
+                    .GetIndexer();
+
+                if (indexerProp != null)
+                {
+                    _shapeTable.SetShape(indexer, new TypeShape(indexerProp.PropertyType));
+                    return;
+                }
+            }
+
+            _shapeTable.SetShape(indexer, new UnknownShape());
         }
 
         public void VisitExprStmt(ExpressionStmt exprStmt)
@@ -428,11 +457,6 @@ namespace ClrScript.Visitation
         }
 
         public void VisitInterpolatedString(InterpolatedStr str)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void visitIndexer(Indexer indexer)
         {
             throw new NotImplementedException();
         }

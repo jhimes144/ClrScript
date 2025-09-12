@@ -14,15 +14,18 @@ namespace ClrScript.Elements.Expressions
 
         public Expr Expression { get; }
 
-        public Indexer(Token startLocation, Expr expression)
+        public Expr Callee { get; }
+
+        public Indexer(Token startLocation, Expr callee, Expr expression)
         {
             StartLocation = startLocation;
             Expression = expression;
+            Callee = callee;
         }
 
         public override void Accept(IExpressionVisitor visitor)
         {
-            visitor.visitIndexer(this);
+            visitor.VisitIndexer(this);
         }
     }
 }

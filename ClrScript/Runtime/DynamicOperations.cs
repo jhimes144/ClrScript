@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ClrScript.Runtime
@@ -160,7 +161,7 @@ namespace ClrScript.Runtime
 
         public static void Assign(object instance, string memberName, object value)
         {
-            var type = instance.GetTypeIncludeNull();
+            var type = instance.GetType();
 
             if (type == typeof(ClrScriptObject))
             {
@@ -176,9 +177,22 @@ namespace ClrScript.Runtime
             }
         }
 
+        public static object Indexer(object instance, object index, TypeManager typeManager)
+        {
+            var type = instance.GetType();
+            var indexer = typeManager.GetTypeInfo(type)?.GetIndexer();
+
+            if (indexer == null)
+            {
+                throw new ClrScriptRuntimeException($"Indexing is not possible on {type.GetClrScriptTypeDisplay()}.");
+            }
+
+            throw new NotImplementedException();
+        }
+
         public static object MemberAccess(object instance, string memberName, TypeManager typeManager)
         {
-            var type = instance.GetTypeIncludeNull();
+            var type = instance.GetType();
 
             if (instance is ClrScriptObject clrObj)
             {

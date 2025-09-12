@@ -24,7 +24,12 @@ namespace ClrScript.Runtime.Builtins
             _hasFields = type.GetFields().Length > 0;
         }
 
-        public void DynSet(string key, object value)
+        public bool HasDynamicProperties()
+        {
+            return _dynProperties.Count > 0;
+        }
+
+        public void DynSet(string key, object value)         
         {
             if (!_hasFields)
             {

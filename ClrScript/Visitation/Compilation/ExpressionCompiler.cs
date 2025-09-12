@@ -379,6 +379,31 @@ namespace ClrScript.Visitation.Compilation
             }
         }
 
+        public void VisitIndexer(Indexer indexer)
+        {
+            var gen = _context.CurrentEnv.Generator;
+            indexer.Callee.Accept(this);
+            indexer.Expression.Accept(this);
+
+            var calleeShape = _context.ShapeTable.GetShape(indexer.Callee);
+
+            if (calleeShape is ClrScriptArrayShape || calleeShape is TypeShape)
+            {
+                var indexerProp = _context.TypeManager
+                    .GetTypeInfo(calleeShape.InferredType)
+                    .GetIndexer();
+
+                gen.EmitCall(OpCodes.Callvirt, indexerProp.GetMethod, null);
+            }
+            else
+            {
+                _context.DynamicOperationsEmitted = true;
+                gen.EmitLoadTypeManager();
+                gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
+                            .GetMethod(nameof(DynamicOperations.Indexer)), null);
+            }
+        }
+
         public void VisitCall(Call call)
         {
             var gen = _context.CurrentEnv.Generator;
@@ -494,11 +519,6 @@ namespace ClrScript.Visitation.Compilation
         public void VisitInterpolatedString(InterpolatedStr str)
         {
             throw new NotImplementedException();
-        }
-
-        public void visitIndexer(Indexer indexer)
-        {
-
         }
     }
 }

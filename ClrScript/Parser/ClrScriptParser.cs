@@ -552,7 +552,7 @@ namespace ClrScript.Parser
                     var indexerExpr = expression();
 
                     consume(TokenType.RightBracket, "Expected ']' after expression.");
-                    expr = new Indexer(leftBracket, indexerExpr);
+                    expr = new Indexer(leftBracket, expr, indexerExpr);
                 }
                 else
                 {

@@ -328,11 +328,16 @@ namespace ClrScript
             }
 
             Emit(OpCodes.Ldstr, memberName);
-            Emit(OpCodes.Ldarg_2); // type manager
+            EmitLoadTypeManager(); // type manager
             EmitCall(OpCodes.Call, typeof(DynamicOperations)
                 .GetMethod(nameof(DynamicOperations.MemberAccess)), null);
 
             context.DynamicOperationsEmitted = true;
+        }
+
+        public void EmitLoadTypeManager()
+        {
+            Emit(OpCodes.Ldarg_2);
         }
 
         public void EmitAssign(MemberRootAccess rootAccess, Action emitValue, ShapeInfo valueShape, CompilationContext context)
@@ -576,7 +581,7 @@ namespace ClrScript
             }
             else
             {
-                // this should not happen, external type analyzer should throw for it.
+                // this should not happen, type manager should throw for it.
                 throw new NotSupportedException
                     ($"Unsupported target type for numeric conversion: {targetType.Name}");
             }

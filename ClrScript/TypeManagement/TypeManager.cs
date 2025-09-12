@@ -184,6 +184,19 @@ namespace ClrScript.TypeManagement
                             $" cannot be used in ClrScript extension classes.");
                     }
 
+                    if (prop.GetIndexParameters().Length > 0)
+                    {
+                        var haveOtherIndexers = membersByName.Values
+                            .Any(m => m is PropertyInfo otherProp 
+                                && otherProp.GetIndexParameters().Length > 0);
+
+                        if (haveOtherIndexers)
+                        {
+                            throw new ClrScriptInteropException($"'{type}' -> '{prop.Name}' multiple indexers marked with" +
+                                $" ClrScriptMemberAttribute are not supported.");
+                        }
+                    }
+
                     ValidateType(prop.PropertyType);
                 }
                 else if (member is FieldInfo field)
