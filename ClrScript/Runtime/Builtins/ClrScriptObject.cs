@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -14,8 +15,23 @@ namespace ClrScript.Runtime.Builtins
         readonly Dictionary<string, object> _dynProperties
             = new Dictionary<string, object>();
 
+        readonly bool _hasFields;
+
+        public ClrScriptObject()
+        {
+            // TODO: This is going to be a performance bottleneck
+            var type = GetType();
+            _hasFields = type.GetFields().Length > 0;
+        }
+
         public void DynSet(string key, object value)
         {
+            if (!_hasFields)
+            {
+                _dynProperties[key] = value;
+                return;
+            }
+
             var type = GetType();
             var field = type.GetField(key);
 
@@ -42,6 +58,11 @@ namespace ClrScript.Runtime.Builtins
             if (_dynProperties.TryGetValue(key, out var value))
             {
                 return value;
+            }
+
+            if (!_hasFields)
+            {
+                return null;
             }
 
             var type = GetType();

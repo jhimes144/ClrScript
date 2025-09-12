@@ -15,13 +15,14 @@ namespace ClrScript
 
         public string GetMemberName(string actualMemberName)
         {
+            if (!string.IsNullOrWhiteSpace(NameOverride))
+            {
+                actualMemberName = NameOverride;
+            }
+
             if (ConvertToCamelCase)
             {
                 actualMemberName = Util.ConvertStrToCamel(actualMemberName);
-            }
-            else if (!string.IsNullOrWhiteSpace(NameOverride))
-            {
-                actualMemberName = NameOverride;
             }
 
             return actualMemberName;

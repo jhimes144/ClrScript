@@ -4,6 +4,7 @@ using ClrScript.Lexer.TokenReaders;
 using ClrScript.Runtime;
 using ClrScript.Runtime.Builtins;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -306,6 +307,31 @@ namespace ClrScript.Visitation.Compilation
             }
         }
 
+        public void VisitArrayLiteral(ArrayLiteral expr)
+        {
+            var gen = _context.CurrentEnv.Generator;
+            var arrayShapeInfo = _context.ShapeTable.GetShape(expr) as ClrScriptArrayShape
+                ?? throw new Exception("Expecting ClrScriptArrayShape");
+
+            gen.Emit(OpCodes.Newobj, arrayShapeInfo.InferredType
+                .GetConstructor(Type.EmptyTypes));
+
+            var arrayType = arrayShapeInfo.InferredType.GenericTypeArguments[0];
+            var addMethod = arrayShapeInfo.InferredType.GetMethod
+                    ("AddClr", new Type[] { arrayType });
+
+            foreach (var contentExpr in expr.Contents)
+            {
+                gen.Emit(OpCodes.Dup);
+                contentExpr.Accept(this);
+
+                gen.EmitBoxIfNeeded(arrayShapeInfo.ContentShape,
+                    _context.ShapeTable.GetShape(contentExpr));
+
+                gen.EmitCall(OpCodes.Callvirt, addMethod, null);
+            }
+        }
+
         public void VisitUnary(Unary expr)
         {
             expr.Right.Accept(this);
@@ -381,6 +407,8 @@ namespace ClrScript.Visitation.Compilation
                             {
                                 gen.EmitStackDoubleToNumericValueTypeConversion(methodArgType);
                             }
+
+                            gen.EmitBoxIfNeeded(methodArgType, _context.ShapeTable.GetShape(arg).InferredType);
                         }
 
                         if (methodInfo.IsStatic)
@@ -433,6 +461,8 @@ namespace ClrScript.Visitation.Compilation
                             {
                                 gen.EmitStackDoubleToNumericValueTypeConversion(methodArgType);
                             }
+
+                            gen.EmitBoxIfNeeded(methodArgType, _context.ShapeTable.GetShape(arg).InferredType);
                         }
 
                         var invokeMethod = methodShape.InferredType.GetMethod("Invoke");
@@ -464,6 +494,11 @@ namespace ClrScript.Visitation.Compilation
         public void VisitInterpolatedString(InterpolatedStr str)
         {
             throw new NotImplementedException();
+        }
+
+        public void visitIndexer(Indexer indexer)
+        {
+
         }
     }
 }

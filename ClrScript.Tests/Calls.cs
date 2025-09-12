@@ -41,6 +41,8 @@ public class Calls
         Assert.AreEqual(false, context.DynamicOperationsEmitted);
     }
 
+    // TODO: Test to make sure you cannot assign root members
+
     [TestMethod]
     public void External_Call_EchoString_No_Return_Handle()
     {

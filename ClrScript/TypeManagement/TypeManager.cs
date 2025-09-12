@@ -14,6 +14,13 @@ namespace ClrScript.TypeManagement
 {
     public class TypeManager
     {
+        static readonly Type[] _allowedGenerics =
+        {
+            typeof(IList<>),
+            typeof(IReadOnlyList<>),
+            typeof(IEnumerable<>),
+        };
+
         Dictionary<Type, TypeInfo> _typeInfoByType 
             = new Dictionary<Type, TypeInfo>();
 
@@ -53,7 +60,21 @@ namespace ClrScript.TypeManagement
 
             if (type.IsGenericType)
             {
-                throw new ClrScriptInteropException($"'{type}' is an invalid ClrScript type. Generics are not supported.");
+                var foundSupported = false;
+
+                foreach (var gType in _allowedGenerics)
+                {
+                    if (gType.MakeGenericType(type.GenericTypeArguments).IsAssignableFrom(type))
+                    {
+                        foundSupported = true;
+                        break;
+                    }
+                }
+
+                if (!foundSupported)
+                {
+                    throw new ClrScriptInteropException($"'{type}' is an invalid ClrScript type. Type is not included in list of supported generics.");
+                }
             }
 
             if (type.IsPointer)
@@ -82,7 +103,8 @@ namespace ClrScript.TypeManagement
             }
             else
             {
-                if (!typeof(ClrScriptObject).IsAssignableFrom(type) 
+                if (!typeof(ClrScriptObject).IsAssignableFrom(type)
+                    && !typeof(ClrScriptArray).IsAssignableFrom(type)
                     && type != typeof(string) 
                     && type != typeof(double)
                     && type != typeof(bool)

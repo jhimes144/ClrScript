@@ -3,6 +3,7 @@ using ClrScript.Runtime.Builtins;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -47,6 +48,10 @@ namespace ClrScript.Runtime
             else if (type == typeof(DynamicNull))
             {
                 return "null";
+            }
+            else if (typeof(Delegate).IsAssignableFrom(type) || type == typeof(MethodInfo))
+            {
+                return "function";
             }
 
             if (typeof(IEnumerable<>).IsAssignableFrom(type))

@@ -180,9 +180,9 @@ namespace ClrScript.Runtime
         {
             var type = instance.GetTypeIncludeNull();
 
-            if (typeof(ClrScriptObject).IsAssignableFrom(type))
+            if (instance is ClrScriptObject clrObj)
             {
-                return ((ClrScriptObject)instance).DynGet(memberName);
+                return clrObj.DynGet(memberName);
             }
 
             var typeInfo = typeManager.GetTypeInfo(type);

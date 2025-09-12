@@ -104,7 +104,7 @@ namespace ClrScript.Parser
 
         Stmt forStatement()
         {
-            var startLoc = previous(); // The 'for' token that was just matched
+            var startLoc = previous();
             consume(TokenType.LeftParen, "Expected '(' after 'for'.");
 
             // Initializer
@@ -546,6 +546,14 @@ namespace ClrScript.Parser
                     var paren = consume(TokenType.RightParen, "Expected ')' after arguments.");
                     expr = new Call(paren, expr, arguments);
                 }
+                else if (matchAny(TokenType.LeftBracket))
+                {
+                    var leftBracket = previous();
+                    var indexerExpr = expression();
+
+                    consume(TokenType.RightBracket, "Expected ']' after expression.");
+                    expr = new Indexer(leftBracket, indexerExpr);
+                }
                 else
                 {
                     break;
@@ -597,6 +605,11 @@ namespace ClrScript.Parser
                 return objectLiteral();
             }
 
+            if (matchAny(TokenType.LeftBracket))
+            {
+                return arrayLiteral();
+            }
+
             if (matchAny(TokenType.Identifier))
             {
                 var token = previous();
@@ -606,9 +619,33 @@ namespace ClrScript.Parser
             throw new ClrScriptCompileException("Expected expression.", previous());
         }
 
+        Expr arrayLiteral()
+        {
+            var open = previous();
+            var contents = new List<Expr>();
+
+            if (!check(TokenType.RightBracket))
+            {
+                do
+                {
+                    var initExpr = expression();
+                    contents.Add(initExpr);
+                } while (matchAny(TokenType.Comma) && !check(TokenType.RightBracket));
+            }
+
+            consume(TokenType.RightBracket, "Expected ']' after array literal.");
+
+            if (!_settings.AllowUserArrayConstruction)
+            {
+                throw new ClrScriptCompileException("Array construction is not allowed in this environment.", open);
+            }
+
+            return new ArrayLiteral(open, contents);
+        }
+
         Expr objectLiteral()
         {
-            var openBrace = previous(); // The '{' token that was just matched
+            var open = previous();
             var properties = new List<(Token Key, Expr Value)>();
 
             if (!check(TokenType.RightBrace))
@@ -628,10 +665,10 @@ namespace ClrScript.Parser
 
             if (!_settings.AllowUserObjectConstruction)
             {
-                throw new ClrScriptCompileException("Object literals are not allowed in this environment.", openBrace);
+                throw new ClrScriptCompileException("Object construction is not allowed in this environment.", open);
             }
 
-            return new ObjectLiteral(properties, openBrace);
+            return new ObjectLiteral(properties, open);
         }
 
         bool matchAny(params TokenType[] tokenTypes)

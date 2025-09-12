@@ -21,5 +21,7 @@ namespace ClrScript.Visitation
         void VisitMemberAccess(MemberAccess memberAccess);
         void VisitCall(Call call);
         void VisitInterpolatedString(InterpolatedStr str);
+        void VisitArrayLiteral(ArrayLiteral expr);
+        void visitIndexer(Indexer indexer);
     }
 }

@@ -157,6 +157,15 @@ namespace ClrScript.Visitation
                 arg.Accept(this);
             }
 
+            // special case: Array adds
+            if (call.Callee is MemberAccess memberAccess 
+                && memberAccess.Name.Value == "add" 
+                && _shapeTable.GetShape(memberAccess.Expr) is ClrScriptArrayShape arrayShape)
+            {
+                arrayShape.ContentShape = _shapeTable.DeriveShape(arrayShape.ContentShape,
+                    _shapeTable.GetShape(call.Arguments[0]));
+            }
+
             _shapeTable.SetShape(call, _shapeTable.GetShape(call.Callee));
         }
 
@@ -225,6 +234,28 @@ namespace ClrScript.Visitation
             _shapeTable.SetShape(objLiteral, new ClrScriptObjectShape(shapeInfoByPropName));
         }
 
+        public void VisitArrayLiteral(ArrayLiteral expr)
+        {
+            ShapeInfo contentsShape = UndeterminedShape.Instance;
+
+            foreach (var contentExpr in expr.Contents)
+            {
+                contentExpr.Accept(this);
+                var exprShape = _shapeTable.GetShape(contentExpr);
+
+                if (contentsShape is UndeterminedShape)
+                {
+                    contentsShape = exprShape;
+                }
+                else
+                {
+                    contentsShape = _shapeTable.DeriveShape(contentsShape, exprShape);
+                }
+            }
+
+            _shapeTable.SetShape(expr, new ClrScriptArrayShape(contentsShape));
+        }
+
         public void VisitMemberRootAccess(MemberRootAccess member)
         {
             var existingSymbol = _symbolTable.CurrentScope.FindSymbolGoingUp
@@ -265,21 +296,42 @@ namespace ClrScript.Visitation
             memberAccess.Expr.Accept(this);
             
             var exprShape = _shapeTable.GetShape(memberAccess.Expr);
-            
+            var memberName = memberAccess.Name.Value;
+
             if (exprShape is ClrScriptObjectShape objShape)
             {
-                var propName = memberAccess.Name.Value;
-
-                if (objShape.ShapeInfoByPropName.TryGetValue(propName, out var propShape))
+                if (objShape.ShapeInfoByPropName.TryGetValue(memberName, out var propShape))
                 {
                     _shapeTable.SetShape(memberAccess, propShape);
+                    return;
+                }
+
+                var member = _typeManager.GetTypeInfo(typeof(ClrScriptObject))?
+                    .GetMember(memberName);
+
+                if (member != null)
+                {
+                    var shape = memberToShape(member);
+                    _shapeTable.SetShape(memberAccess, shape);
+                    return;
+                }
+            }
+            else if (exprShape is ClrScriptArrayShape arrayShape)
+            {
+                var member = _typeManager.GetTypeInfo(typeof(ClrScriptArray<object>))?
+                    .GetMember(memberName);
+
+                if (member != null)
+                {
+                    var shape = memberToShape(member);
+                    _shapeTable.SetShape(memberAccess, shape);
                     return;
                 }
             }
             else if (exprShape is TypeShape typeShape)
             {
                 var member = _typeManager.GetTypeInfo(typeShape.InferredType)?
-                    .GetMember(memberAccess.Name.Value);
+                    .GetMember(memberName);
 
                 if (member != null)
                 {
@@ -376,6 +428,11 @@ namespace ClrScript.Visitation
         }
 
         public void VisitInterpolatedString(InterpolatedStr str)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void visitIndexer(Indexer indexer)
         {
             throw new NotImplementedException();
         }

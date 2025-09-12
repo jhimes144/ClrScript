@@ -250,15 +250,20 @@ namespace ClrScript
             var currentShapeT = currentShape?.InferredType ?? typeof(object);
             var previousShapeT = previousShape?.InferredType ?? typeof(object);
 
-            if (!currentShapeT.IsValueType && previousShapeT.IsValueType)
+            EmitBoxIfNeeded(currentShapeT, previousShapeT);
+        }
+
+        public void EmitBoxIfNeeded(Type currentType, Type previousType)
+        {
+            if (!currentType.IsValueType && previousType.IsValueType)
             {
-                if (InteropHelpers.GetIsSupportedNumericInteropTypeNeedingConversion(previousShapeT))
+                if (InteropHelpers.GetIsSupportedNumericInteropTypeNeedingConversion(previousType))
                 {
                     // emit from before would of already converted the value.
-                    previousShapeT = typeof(double);
+                    previousType = typeof(double);
                 }
 
-                Emit(OpCodes.Box, previousShapeT);
+                Emit(OpCodes.Box, previousType);
             }
         }
 

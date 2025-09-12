@@ -27,6 +27,11 @@ namespace ClrScript.Visitation
 
         public void GenerateRuntimeTypes(ModuleBuilder moduleBuilder)
         {
+            generateObjTypes(moduleBuilder);
+        }
+
+        void generateObjTypes(ModuleBuilder moduleBuilder)
+        {
             var typeBuildersByShape = new Dictionary<ClrScriptObjectShape, TypeBuilder>();
             var masterObjectShapes = new HashSet<ClrScriptObjectShape>();
 
@@ -38,7 +43,7 @@ namespace ClrScript.Visitation
             foreach (var objShape in masterObjectShapes)
             {
                 var typeBuilder = moduleBuilder.DefineType
-                    ($"ClrScriptGen_{Guid.NewGuid().ToString().Replace('-', '_')}",
+                    ($"ClrScript_Obj_Gen_{Guid.NewGuid().ToString().Replace('-', '_')}",
                     TypeAttributes.Public,
                     typeof(ClrScriptObject));
 
@@ -106,7 +111,7 @@ namespace ClrScript.Visitation
                 throw new Exception("Shape wasn't defined");
             }
 
-            if (masterShape == null)
+            if (masterShape == null || masterShape is UndeterminedShape)
             {
                 return sourceShape;
             }
@@ -123,9 +128,18 @@ namespace ClrScript.Visitation
                 return masterShape;
             }
 
-            if (masterShape is ClrArrayObjectShape a1
-                && sourceShape is ClrArrayObjectShape a2)
+            if (masterShape is MethodShape m1
+                && sourceShape is MethodShape m2
+                && m1.InferredType == m2.InferredType)
             {
+                // this cannot be inferred type
+                return masterShape;
+            }
+
+            if (masterShape is ClrScriptArrayShape a1
+                && sourceShape is ClrScriptArrayShape a2)
+            {
+                a1.ContentShape = DeriveShape(a1.ContentShape, a2.ContentShape);
                 return masterShape;
             }
 
@@ -158,7 +172,7 @@ namespace ClrScript.Visitation
                 return masterShape;
             }
 
-            return new UnknownShape();
+            return UnknownShape.Instance;
         }
     }
 
@@ -172,6 +186,11 @@ namespace ClrScript.Visitation
         public override Type InferredType => typeof(object);
 
         public static UnknownShape Instance { get; } = new UnknownShape();
+    }
+
+    class UndeterminedShape : UnknownShape
+    {
+        public static new UndeterminedShape Instance { get; } = new UndeterminedShape();
     }
 
     class TypeShape : ShapeInfo
@@ -211,9 +230,24 @@ namespace ClrScript.Visitation
         }
     }
 
+    class ClrScriptArrayShape : ShapeInfo
+    {
+        public override Type InferredType => typeof(ClrScriptArray<>)
+            .MakeGenericType(ContentShape.InferredType);
+
+        // supports reference tracking
+        public ShapeInfo ContentShape { get; set; }
+
+        public ClrScriptArrayShape(ShapeInfo contentShape)
+        {
+            ContentShape = contentShape;
+        }
+    }
+
     class ClrScriptObjectShape : ShapeInfo
     {
-        public override Type InferredType => GetMasterShape().GeneratedClrScriptObjType;
+        public override Type InferredType => GetMasterShape().GeneratedClrScriptObjType
+            ?? throw new Exception("Clr type not generated");
 
         public ClrScriptObjectShape ParentShape { get; set; }
 
@@ -250,12 +284,5 @@ namespace ClrScript.Visitation
         {
             ShapeInfoByPropName = shapeInfoByPropName;
         }
-    }
-
-    class ClrArrayObjectShape : ShapeInfo
-    {
-        public override Type InferredType => typeof(ClrScriptArray);
-
-        public ShapeInfo ArrayShape { get; }
     }
 }
