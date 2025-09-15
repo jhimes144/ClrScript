@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
-namespace ClrScript.Visitation
+namespace ClrScript.Visitation.Analysis
 {
     class SymbolTable
     {
@@ -69,6 +69,17 @@ namespace ClrScript.Visitation
         public VariableSymbol(string name, Element element, Scope declaringScope) 
             : base(name, element, declaringScope)
         {
+        }
+    }
+
+    class LambdaParamSymbol : Symbol
+    {
+        public int ParamIndex { get; }
+
+        public LambdaParamSymbol(int paramIndex, string name, Element element, Scope declaringScope)
+            : base(name, element, declaringScope)
+        {
+            ParamIndex = paramIndex;
         }
     }
 }

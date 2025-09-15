@@ -1,6 +1,5 @@
 ﻿using ClrScript.Elements;
 using ClrScript.Elements.Statements;
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -8,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ClrScript.Visitation
+namespace ClrScript.Visitation.Analysis
 {
     enum ScopeKind
     {

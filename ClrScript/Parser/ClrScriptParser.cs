@@ -410,7 +410,8 @@ namespace ClrScript.Parser
             consume(TokenType.Arrow, "Expected '=>' in lambda expression.");
 
             Expr body;
-            if (check(TokenType.LeftBrace))
+
+            if (matchAny(TokenType.LeftBrace))
             {
                 body = new BlockExpr(blockStatement());
             }
@@ -652,12 +653,20 @@ namespace ClrScript.Parser
             {
                 do
                 {
-                    var key = consume(TokenType.Identifier, "Expected property name.");
-                    consume(TokenType.Colon, "Expected ':' after property name.");
-                    var value = expression();
+                    if (peek().Type == TokenType.Identifier && lookAhead(1).Type != TokenType.Colon)
+                    {
+                        var key = peek();
+                        var value = expression();
+                        properties.Add((key, value));
+                    }
+                    else
+                    {
+                        var key = consume(TokenType.Identifier, "Expected property name.");
+                        consume(TokenType.Colon, "Expected ':' after property name.");
+                        var value = expression();
 
-                    properties.Add((key, value));
-
+                        properties.Add((key, value));
+                    }
                 } while (matchAny(TokenType.Comma) && !check(TokenType.RightBrace));
             }
 
@@ -700,6 +709,16 @@ namespace ClrScript.Parser
             throw new ClrScriptCompileException(message, previous());
         }
 
+        Token guard(TokenType type, string message)
+        {
+            if (check(type))
+            {
+                return peek();
+            }
+
+            throw new ClrScriptCompileException(message, peek());
+        }
+
         bool check(TokenType type)
         {
             if (isAtEnd())
@@ -728,6 +747,12 @@ namespace ClrScript.Parser
         Token peek()
         {
             return _tokens[_current];
+        }
+
+        Token lookAhead(int peekOffset)
+        {
+            var index = Math.Min(_current + peekOffset, _tokens.Count - 1);
+            return _tokens[index];
         }
 
         Token previous()

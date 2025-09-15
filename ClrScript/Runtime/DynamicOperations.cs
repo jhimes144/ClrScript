@@ -106,7 +106,7 @@ namespace ClrScript.Runtime
                 return leftD > rightD;
             }
 
-            throw new ClrScriptRuntimeException($"Cannot perform operator > on {left.GetClrScriptTypeDisplay()}  with  {right.GetClrScriptTypeDisplay()}.");
+            throw new ClrScriptRuntimeException($"Cannot perform operator > on {left.GetClrScriptTypeDisplay()} with {right.GetClrScriptTypeDisplay()}.");
         }
 
         public static bool LessThan(object left, object right)
@@ -116,7 +116,7 @@ namespace ClrScript.Runtime
                 return leftD < rightD;
             }
 
-            throw new ClrScriptRuntimeException($"Cannot perform operator < on {left.GetClrScriptTypeDisplay()}  with  {right.GetClrScriptTypeDisplay()}.");
+            throw new ClrScriptRuntimeException($"Cannot perform operator < on {left.GetClrScriptTypeDisplay()} with {right.GetClrScriptTypeDisplay()}.");
         }
 
         public static bool GreaterThanOrEqual(object left, object right)
@@ -126,7 +126,7 @@ namespace ClrScript.Runtime
                 return leftD >= rightD;
             }
 
-            throw new ClrScriptRuntimeException($"Cannot perform operator >= on {left.GetClrScriptTypeDisplay()}  with  {right.GetClrScriptTypeDisplay()}.");
+            throw new ClrScriptRuntimeException($"Cannot perform operator >= on {left.GetClrScriptTypeDisplay()} with {right.GetClrScriptTypeDisplay()}.");
         }
 
         public static bool LessThanOrEqual(object left, object right)
@@ -136,7 +136,7 @@ namespace ClrScript.Runtime
                 return leftD <= rightD;
             }
 
-            throw new ClrScriptRuntimeException($"Cannot perform operator <= on {left.GetClrScriptTypeDisplay()}   with   {right.GetClrScriptTypeDisplay()}.");
+            throw new ClrScriptRuntimeException($"Cannot perform operator <= on {left.GetClrScriptTypeDisplay()} with {right.GetClrScriptTypeDisplay()}.");
         }
 
         public static object UnaryMinus(object value)

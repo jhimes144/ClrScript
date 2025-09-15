@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ClrScript.Runtime.Builtins;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -25,6 +26,31 @@ namespace ClrScript.Tests
             var context = ClrScriptContext<object>.Compile(code);
             var result = context.Run();
             Assert.AreEqual("Chris", result);
+            Assert.AreEqual(false, context.DynamicOperationsEmitted);
+        }
+
+        [TestMethod]
+        public void Basic_Assignment_Auto_Prop_Name()
+        {
+            var code = @"
+                var name = ""Bob"";
+                var age = 32;
+
+                var object = {
+                   name,
+                   age
+                };
+
+                return object;
+            ";
+
+            var context = ClrScriptContext<object>.Compile(code);
+            var result = context.Run();
+
+            var obj = (ClrScriptObject)result;
+
+            Assert.AreEqual("Bob", obj.DynGet("name"));
+            Assert.AreEqual(32d, obj.DynGet("age"));
             Assert.AreEqual(false, context.DynamicOperationsEmitted);
         }
 

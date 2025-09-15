@@ -202,7 +202,7 @@ namespace ClrScript.Tests
                 var array1 = [12, 32.2, 45];
                 var array2 = array1;
                 array2.add(""hello"");
-                return array1;
+                return array2;
             ");
 
             var result = context.Run();
@@ -260,6 +260,7 @@ namespace ClrScript.Tests
             Assert.IsTrue(objType.GetField("age").FieldType == typeof(double));
 
             Assert.IsTrue(typesSame);
+            Assert.IsFalse(context.DynamicOperationsEmitted);
         }
 
         [TestMethod]

@@ -3,6 +3,7 @@ using ClrScript.Interop;
 using ClrScript.Lexer.TokenReaders;
 using ClrScript.Runtime;
 using ClrScript.Runtime.Builtins;
+using ClrScript.Visitation.Analysis;
 using System;
 using System.Collections;
 using System.Collections.Generic;

@@ -4,7 +4,7 @@ using ClrScript.Lexer;
 using ClrScript.Parser;
 using ClrScript.Runtime;
 using ClrScript.TypeManagement;
-using ClrScript.Visitation;
+using ClrScript.Visitation.Analysis;
 using System;
 using System.Collections.Generic;
 using System.Linq;

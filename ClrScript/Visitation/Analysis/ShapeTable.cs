@@ -8,7 +8,7 @@ using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ClrScript.Visitation
+namespace ClrScript.Visitation.Analysis
 {
     class ShapeTable
     {

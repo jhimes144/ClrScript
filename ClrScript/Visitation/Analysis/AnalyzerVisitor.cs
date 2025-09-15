@@ -11,7 +11,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ClrScript.Visitation
+namespace ClrScript.Visitation.Analysis
 {
     class AnalyzerVisitor : IStatementVisitor, IExpressionVisitor
     {
@@ -258,7 +258,36 @@ namespace ClrScript.Visitation
 
         public void VisitLambda(Lambda lambda)
         {
+            _symbolTable.BeginScope(ScopeKind.Lambda);
+
+            var index = 0;
+
+            foreach (var param in lambda.Parameters)
+            {
+                var existingSymbol = _symbolTable.CurrentScope.FindSymbolGoingUp
+                    (param.Value, out var foundScopeExist);
+
+                if (existingSymbol != null)
+                {
+                    _errors.Add(new ClrScriptCompileError($"Function parameter has a bad name. " +
+                            $"'{param.Value}' has already been declared in an enclosing scope.", lambda));
+
+                    return;
+                }
+
+                var symbol = new LambdaParamSymbol(index, param.Value,
+                    lambda, _symbolTable.CurrentScope);
+
+                // need to support multiple symbols for an element or something
+                _symbolTable.SetSymbolFor(lambda, symbol);
+                index++;
+            }
+
+            var methodShape = new MethodShape(UndeterminedShape.Instance, 
+                lambda.Parameters.Select(_ => UndeterminedShape.Instance).ToArray());
+
             lambda.Body.Accept(this);
+            _symbolTable.EndScope();
         }
 
         public void VisitLiteral(Literal expr)
@@ -325,12 +354,16 @@ namespace ClrScript.Visitation
 
             if (existingSymbol != null)
             {
-                if (existingSymbol is VariableSymbol sym)
+                if (existingSymbol is VariableSymbol varSym)
                 {
-                    var stmt = (VarStmt)sym.Element;
+                    var stmt = (VarStmt)varSym.Element;
                     _shapeTable.SetShape(member, _shapeTable.GetShape(stmt));
                     member.AccessType = RootMemberAccessType.Variable;
                     return;
+                }
+                else if (existingSymbol is LambdaParamSymbol paramSym)
+                {
+                        
                 }
 
                 _errors.Add(new ClrScriptCompileError($"'{member.Name.Value}' must point to either a const, eternal, or var declaration.", member));

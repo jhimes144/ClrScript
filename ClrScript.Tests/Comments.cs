@@ -58,7 +58,7 @@ namespace ClrScript.Tests
         public void Comments_In_Function_Body()
         {
             var code = @"
-                var calculate = (x, y) => {
+                var calculate = (x, y) -> {
                     // Calculate the sum
                     var sum = x + y;
                     // Calculate the product

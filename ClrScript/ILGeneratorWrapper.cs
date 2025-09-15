@@ -15,6 +15,7 @@ using ClrScript.Runtime;
 using ClrScript.Elements.Statements;
 using ClrScript.Visitation.Compilation;
 using ClrScript.TypeManagement;
+using ClrScript.Visitation.Analysis;
 
 namespace ClrScript
 {

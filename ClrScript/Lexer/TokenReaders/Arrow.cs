@@ -10,7 +10,7 @@ namespace ClrScript.Lexer.TokenReaders
     {
         public bool GetIsMatch(TokenReader reader)
         {
-            if (reader.Consume() != '=')
+            if (reader.Consume() != '-')
             {
                 return false;
             }

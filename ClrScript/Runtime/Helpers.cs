@@ -42,19 +42,28 @@ namespace ClrScript.Runtime
             {
                 return "string";
             }
-            else if (type == typeof(bool))
+            
+            if (type == typeof(bool))
             {
                 return "bool";
             }
-            else if (InteropHelpers.GetIsSupportedNumericInteropType(type))
+
+            if (type == typeof(object))
+            {
+                return "unknown";
+            }
+
+            if (InteropHelpers.GetIsSupportedNumericInteropType(type))
             {
                 return "number";
             }
-            else if (type == typeof(DynamicNull))
+            
+            if (type == typeof(DynamicNull))
             {
                 return "null";
             }
-            else if (typeof(Delegate).IsAssignableFrom(type) || type == typeof(MethodInfo))
+            
+            if (typeof(Delegate).IsAssignableFrom(type) || type == typeof(MethodInfo))
             {
                 return "function";
             }
@@ -65,7 +74,12 @@ namespace ClrScript.Runtime
                 return GetClrScriptTypeDisplay(arrayType) + "[]";
             }
 
-            return "object";
+            if (typeof(ClrScriptObject).IsAssignableFrom(type))
+            {
+                return "object";
+            }
+
+            return "systemObject";
         }
     }
 }

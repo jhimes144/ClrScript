@@ -1,6 +1,7 @@
 ﻿using ClrScript.Elements;
 using ClrScript.Elements.Expressions;
 using ClrScript.Interop;
+using ClrScript.Visitation.Analysis;
 using System;
 using System.Collections.Generic;
 using System.Linq;
