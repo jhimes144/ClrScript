@@ -1,0 +1,24 @@
+{
+    "comments": {
+        "comment": "//",
+    },
+    "brackets": [
+        ["{", "}"],                    // Highlights matching braces
+        ["[", "]"],
+        ["(", ")"]
+    ],
+    "autoClosingPairs": [
+        { "open": "{", "close": "}" }, // Type { and } appears
+        { "open": "\"", "close": "\"", "notIn": ["string"] }
+    ],
+    "folding": {
+        "markers": {
+            "start": "^\\s*//\\s*#region",    // #region creates fold
+            "end": "^\\s*//\\s*#endregion"
+        }
+    },
+    "indentationRules": {
+        "increaseIndentPattern": "^.*\\{[^}\"']*$",  // Indent after {
+        "decreaseIndentPattern": "^\\s*\\}"          // Unindent before }
+    }
+}

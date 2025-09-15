@@ -21,7 +21,7 @@ namespace ClrScript.Tests
         public void Self_Referencing_Type()
         {
             var manager = new TypeManagement.TypeManager();
-            manager.ValidateType(typeof(SelfReferencingType));
+            manager.ValidatePrepareType(typeof(SelfReferencingType));
         }
     }
 }

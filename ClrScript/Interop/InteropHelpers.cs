@@ -23,19 +23,58 @@ namespace ClrScript.Interop
             typeof(decimal)
         };
 
-        public static bool GetIsSupportedNumericInteropType(Type type)
+        static readonly Type[] _supportedGenerics =
         {
+            typeof(IList<>),
+            typeof(IReadOnlyList<>),
+            typeof(IEnumerable<>),
+            typeof(Nullable<>)
+        };
+
+        public static bool GetIsSupportedGenericType(Type type)
+        {
+            foreach (var gType in _supportedGenerics)
+            {
+                if (gType.MakeGenericType(type.GenericTypeArguments).IsAssignableFrom(type))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public static bool GetIsSupportedValueType(Type type)
+        {
+            if (type.IsGenericType &&
+                type.GetGenericTypeDefinition() == typeof(Nullable<>))
+            {
+                type = type.GenericTypeArguments[0];
+            }
+
+            return type == typeof(bool) || _supportedNumericInteropTypes.Contains(type);
+        }
+
+        public static bool GetIsSupportedNumericInteropType(Type type, bool includeNullables = false)
+        {
+            if (includeNullables && 
+                type.IsGenericType &&
+                type.GetGenericTypeDefinition() == typeof(Nullable<>))
+            {
+                return _supportedNumericInteropTypes.Contains(type.GenericTypeArguments[0]);
+            }
+
             return _supportedNumericInteropTypes.Contains(type);
         }
 
-        public static bool GetIsSupportedNumericInteropTypeNeedingConversion(Type type)
+        public static bool GetIsSupportedNumericInteropTypeNeedingConversion(Type type, bool includeNullables = false)
         {
             if (type == typeof(double))
             {
                 return false;
             }
 
-            return GetIsSupportedNumericInteropType(type);
+            return GetIsSupportedNumericInteropType(type, includeNullables);
         }
 
         public static object ConvertDynBoxNumeric(double value, Type toType)

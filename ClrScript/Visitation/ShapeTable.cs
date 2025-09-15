@@ -50,20 +50,28 @@ namespace ClrScript.Visitation
                 typeBuildersByShape[objShape] = typeBuilder;
             }
 
+            Type getTypeForShape(ShapeInfo shapeInfo)
+            { 
+                if (shapeInfo is ClrScriptObjectShape objShape)
+                {
+                    return typeBuildersByShape[objShape];
+                }
+                else if (shapeInfo is ClrScriptArrayShape objArrayShape)
+                {
+                    var arrayContentType = getTypeForShape(objArrayShape.ContentShape);
+                    return typeof(ClrScriptArray<>).MakeGenericType(arrayContentType);
+                }
+                else
+                {
+                    return shapeInfo.InferredType;
+                }
+            }
+
             foreach (var (shape, builder) in typeBuildersByShape)
             {
                 foreach (var (prop, propShape) in shape.ShapeInfoByPropName)
                 {
-                    Type type;
-
-                    if (propShape is ClrScriptObjectShape objShape)
-                    {
-                        type = typeBuildersByShape[objShape];
-                    }
-                    else
-                    {
-                        type = propShape.InferredType;
-                    }
+                    var type = getTypeForShape(propShape);
 
                     var fieldBuilder = builder.DefineField(prop, type, FieldAttributes.Public);
 
@@ -73,8 +81,32 @@ namespace ClrScript.Visitation
                 }
             }
 
+            var hasFieldsField = typeof(ClrScriptObject).GetField("_hasFields",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+
+            var objConstructor = typeof(ClrScriptObject).GetConstructor(Type.EmptyTypes);
+
             foreach (var (shape, builder) in typeBuildersByShape)
             {
+                if (shape.ShapeInfoByPropName.Count > 0)
+                {
+                    var constructorBuilder = builder.DefineConstructor(
+                        MethodAttributes.Public,
+                        CallingConventions.Standard,
+                        Type.EmptyTypes);
+
+                    var ilGenerator = constructorBuilder.GetILGenerator();
+
+                    ilGenerator.Emit(OpCodes.Ldarg_0);
+                    ilGenerator.Emit(OpCodes.Call, objConstructor);
+
+                    ilGenerator.Emit(OpCodes.Ldarg_0);
+                    ilGenerator.Emit(OpCodes.Ldc_I4_1);
+                    ilGenerator.Emit(OpCodes.Stfld, hasFieldsField);
+
+                    ilGenerator.Emit(OpCodes.Ret);
+                }
+
                 shape.GeneratedClrScriptObjType = builder.CreateType();
             }
         }
@@ -139,8 +171,8 @@ namespace ClrScript.Visitation
             if (masterShape is ClrScriptArrayShape a1
                 && sourceShape is ClrScriptArrayShape a2)
             {
-                a1.ContentShape = DeriveShape(a1.ContentShape, a2.ContentShape);
-                return masterShape;
+                var derivedContentShape = DeriveShape(a1.ContentShape, a2.ContentShape);
+                return new ClrScriptArrayShape(derivedContentShape);
             }
 
             if (masterShape is ClrScriptObjectShape o1
@@ -155,7 +187,7 @@ namespace ClrScript.Visitation
                 {
                     if (o2.ShapeInfoByPropName.TryGetValue(prop, out var otherPropShape))
                     {
-                        o1.ShapeInfoByPropName[prop] = DeriveShape(propShape, otherPropShape);
+                        o1.SetShapeInfoForProp(prop, DeriveShape(propShape, otherPropShape));
                         intersectingPropNames.Add(prop);
                     }
                 }
@@ -164,7 +196,7 @@ namespace ClrScript.Visitation
                 {
                     if (!intersectingPropNames.Contains(prop))
                     {
-                        o1.ShapeInfoByPropName[prop] = propShape;
+                        o1.SetShapeInfoForProp(prop, propShape);
                     }
                 }
 
@@ -178,6 +210,10 @@ namespace ClrScript.Visitation
 
     abstract class ShapeInfo
     {
+        /// <summary>
+        /// The inferred type. IMPORTANT: This is usually not accessible until after types are generated
+        /// UNLESS the shape is a TypeShape.
+        /// </summary>
         public abstract Type InferredType { get; }
     }
 
@@ -232,8 +268,22 @@ namespace ClrScript.Visitation
 
     class ClrScriptArrayShape : ShapeInfo
     {
-        public override Type InferredType => typeof(ClrScriptArray<>)
-            .MakeGenericType(ContentShape.InferredType);
+        public override Type InferredType
+        {
+            get
+            {
+                if (typeof(ClrScriptArray).IsAssignableFrom(ContentShape.InferredType) &&
+                    ContentShape.InferredType.GenericTypeArguments[0] == typeof(object))
+                {
+                    return typeof(ClrScriptArray<>)
+                        .MakeGenericType(typeof(object));
+                }
+
+                return typeof(ClrScriptArray<>)
+                    .MakeGenericType(ContentShape.InferredType);
+            }
+        }
+
 
         // supports reference tracking
         public ShapeInfo ContentShape { get; set; }
@@ -277,12 +327,29 @@ namespace ClrScript.Visitation
         // var obj2 = obj;
         // obj.name = 12; // name gets updated to unknown shape
         // // ^ The shape for obj and obj2 is the same shape instance, so property modifications go for each
+        readonly Dictionary<string, ShapeInfo> _shapeInfoByPropName;
 
-        public Dictionary<string, ShapeInfo> ShapeInfoByPropName { get; }
+        public IReadOnlyDictionary<string, ShapeInfo> ShapeInfoByPropName => _shapeInfoByPropName;
 
         public ClrScriptObjectShape(Dictionary<string, ShapeInfo> shapeInfoByPropName)
         {
-            ShapeInfoByPropName = shapeInfoByPropName;
+            _shapeInfoByPropName = new Dictionary<string, ShapeInfo>();
+
+            foreach (var item in shapeInfoByPropName)
+            {
+                SetShapeInfoForProp(item.Key, item.Value);
+            }
+        }
+
+        public void SetShapeInfoForProp(string propName, ShapeInfo shapeInfo)
+        {
+            //if (shapeInfo is TypeShape typeShape && typeShape.InferredType.IsValueType)
+            //{
+            //    shapeInfo = new TypeShape(typeof(Nullable<>)
+            //        .MakeGenericType(typeShape.InferredType));
+            //}
+
+            _shapeInfoByPropName[propName] = shapeInfo;
         }
     }
 }

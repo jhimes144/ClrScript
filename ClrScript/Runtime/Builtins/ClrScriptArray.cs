@@ -18,15 +18,26 @@ namespace ClrScript.Runtime.Builtins
         public T this[double index]
         {
             get => _contents[(int)index];
+            set => _contents[(int)index] = value;
         }
 
         public T this[int index]
         {
             get => _contents[index];
+            set => _contents[index] = value;
         }
 
-        T IList<T>.this[int index] { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        object IList.this[int index] { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        T IList<T>.this[int index]
+        {
+            get => _contents[index];
+            set => _contents[index] = value;
+        }
+
+        object IList.this[int index]
+        {
+            get => _contents[index];
+            set => _contents[index] = (T)value;
+        }
 
         public bool IsReadOnly => false;
 

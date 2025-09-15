@@ -169,6 +169,15 @@ namespace ClrScript.Visitation.Compilation
                 gen.EmitAssign(assignToMemberAccess, () => assignStmt.ExprAssignValue.Accept(_context.ExpressionCompiler),
                     _context.ShapeTable.GetShape(assignStmt.ExprAssignValue), _context);
             }
+            else if (assignStmt.AssignTo is Indexer indexer)
+            {
+                gen.EmitAssign(indexer, () => assignStmt.ExprAssignValue.Accept(_context.ExpressionCompiler),
+                    _context.ShapeTable.GetShape(assignStmt.ExprAssignValue), _context);
+            }
+            else
+            {
+                throw new NotSupportedException();
+            }
         }
 
         public void VisitPostFixUnaryAssignStmt(PostFixUnaryAssignStmt postFixUnaryAssignStmt)

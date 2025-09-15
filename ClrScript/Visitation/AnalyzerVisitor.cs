@@ -100,16 +100,49 @@ namespace ClrScript.Visitation
                     if (propShape != null)
                     {
                         var derivedPropShape = _shapeTable.DeriveShape(propShape, expressionShape);
-                        clrObjectAssigneeShape.ShapeInfoByPropName[propName] = derivedPropShape;
+                        clrObjectAssigneeShape.SetShapeInfoForProp(propName, derivedPropShape);
                     }
                     else
                     {
                         // property has never been assigned.
-                        clrObjectAssigneeShape.ShapeInfoByPropName[propName] = expressionShape;
+                        clrObjectAssigneeShape.SetShapeInfoForProp(propName, expressionShape);
                     }
                 }
 
                 return;
+            }
+            else if (assignStmt.AssignTo is Indexer indexer)
+            {
+                indexer.Accept(this);
+                assignStmt.ExprAssignValue.Accept(this);
+
+                var expressionShape = _shapeTable.GetShape(assignStmt.ExprAssignValue);
+                var indexerShape = _shapeTable.GetShape(indexer);
+
+                var newIndexerShape = _shapeTable.DeriveShape(indexerShape, expressionShape);
+
+                var calleeShape = _shapeTable.GetShape(indexer.Callee);
+
+                if (calleeShape is ClrScriptArrayShape arrayShape)
+                {
+                    arrayShape.ContentShape = _shapeTable.DeriveShape
+                        (arrayShape.ContentShape, newIndexerShape);
+
+                    return;
+                }
+                else if (calleeShape is TypeShape typeShape)
+                {
+                    return;
+                    //var indexerProp = _typeManager
+                    //    .GetTypeInfo(typeShape.InferredType)?
+                    //    .GetIndexer();
+
+                    //if (indexerProp != null)
+                    //{
+                    //    _shapeTable.SetShape(indexer, new TypeShape(indexerProp.PropertyType));
+                    //    return;
+                    //}
+                }
             }
 
             _errors.Add(new ClrScriptCompileError($"The left hand of an assignment must be variable, property, or indexer.", assignStmt));

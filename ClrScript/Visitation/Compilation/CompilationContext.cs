@@ -47,7 +47,7 @@ namespace ClrScript.Visitation.Compilation
             TypeBuilder rootType,
             Type inType)
         {
-            typeManager.ValidateType(inType);
+            typeManager.ValidatePrepareType(inType);
 
             if (typeof(IImplementsPrintStmt).IsAssignableFrom(inType))
             {

@@ -51,7 +51,7 @@ namespace ClrScript.TypeManagement
                 var parameters = extensionMethod.GetParameters();
                 var memberAtrib = extensionMethod.GetCustomAttribute<ClrScriptMemberAttribute>();
 
-                if (parameters[0].ParameterType == Type)
+                if (parameters[0].ParameterType.IsAssignableFrom(Type))
                 {
                     _membersByName[memberAtrib.GetMemberName(extensionMethod.Name)] = extensionMethod;
                 }

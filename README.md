@@ -6,7 +6,7 @@ ClrScript (pronounced ClearScript) is an embedded dynamically-typed scripting la
 
 ### Built For Real-Time
 
-ClrScript was created out of the need of having an embedded scripting language for the .Net ecosystem suitable for games and real-time applications, where performance is critical. ClrScript is extremely fast, nearly as fast as C#. It accomplishes this by employing full code analysis techniques for type specialization and other optimizations. ClrScript is directly compiled to CLR (Common Language Runtime) bytecode, which is then JIT compiled at runtime.
+ClrScript was created out of the need of having an embedded scripting language for the .Net ecosystem suitable for games and real-time applications, where performance is critical. ClrScript is extremely fast, nearly as fast as C#. It accomplishes this by employing whole code compile-time analysis techniques for type inference and other optimizations. ClrScript is directly compiled to CLR (Common Language Runtime) bytecode, which is then JIT compiled at runtime. ClrScript offers the flexibility of dynamic typing during development with the performance of static typing at runtime.
 
 Below is ClrScript benchmarks against other popular scripting languages for .Net
 

@@ -67,13 +67,13 @@ namespace ClrScript
             settings ??= new ClrScriptCompilationSettings();
 
             var typeManager = new TypeManager();
-            typeManager.ValidateType(typeof(StringOperations), true);
+            typeManager.ValidatePrepareType(typeof(StringOperations), true);
 
             if (settings.ExtensionTypes != null)
             {
                 foreach (var type in settings.ExtensionTypes)
                 {
-                    typeManager.ValidateType(type, true);
+                    typeManager.ValidatePrepareType(type, true);
                 }
             }
 

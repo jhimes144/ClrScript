@@ -31,6 +31,11 @@ namespace ClrScript.Runtime
             return GetClrScriptTypeDisplay(type);
         }
 
+        public static bool GetIsAssignableTo(Type fromType, Type toType)
+        { 
+            return toType.IsAssignableFrom(fromType);
+        }
+
         public static string GetClrScriptTypeDisplay(this Type type)
         {
             if (type == typeof(string))

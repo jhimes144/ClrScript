@@ -15,14 +15,8 @@ namespace ClrScript.Runtime.Builtins
         readonly Dictionary<string, object> _dynProperties
             = new Dictionary<string, object>();
 
-        readonly bool _hasFields;
-
-        public ClrScriptObject()
-        {
-            // TODO: This is going to be a performance bottleneck
-            var type = GetType();
-            _hasFields = type.GetFields().Length > 0;
-        }
+        // mind the name, generated code in shape table relies on this member and its name being the same
+        readonly protected bool _hasFields;
 
         public bool HasDynamicProperties()
         {

@@ -14,43 +14,35 @@ namespace ClrScript.TypeManagement
 {
     public class TypeManager
     {
-        static readonly Type[] _allowedGenerics =
-        {
-            typeof(IList<>),
-            typeof(IReadOnlyList<>),
-            typeof(IEnumerable<>),
-        };
-
         Dictionary<Type, TypeInfo> _typeInfoByType 
             = new Dictionary<Type, TypeInfo>();
 
         List<MethodInfo> _registeredExtensions = new List<MethodInfo>();
 
         /// <summary>
-        /// Insures a given type is valid to be used in ClrScript.
+        /// Insures a given type is valid to be used in ClrScript and caches members that will be used.
         /// </summary>
         /// <param name="type"></param>
-        public void ValidateType(Type type, bool asExtension = false)
+        public void ValidatePrepareType(Type type, bool asExtension = false)
         {
             if (type == typeof(object))
             {
                 return;
             }
 
-            if (InteropHelpers.GetIsSupportedNumericInteropType(type))
+            if (InteropHelpers.GetIsSupportedNumericInteropType(type, true)
+                && type != typeof(double)) // we dont return for double because we have extension methods to register
             {
+                // ignore interop value types, they are valid, but we don't register
+                // any members from them.
+
                 return;
             }
 
-            if (_typeInfoByType.ContainsKey(type))
+            if (type.IsValueType && !InteropHelpers.GetIsSupportedValueType(type))
             {
-                return;
-            }
-
-            // this we may support later
-            if (type == typeof(char))
-            {
-                throw new ClrScriptInteropException($"'{type}' is an invalid ClrScript type. Char type is not supported.");
+                throw new ClrScriptInteropException($"'{type}' is an invalid ClrScript type. It is not a supported value type. Note that " +
+                    $"structures are not supported.");
             }
 
             if (!type.IsPublic)
@@ -58,28 +50,20 @@ namespace ClrScript.TypeManagement
                 throw new ClrScriptInteropException($"'{type}' is an invalid ClrScript type. Type must be public and not nested in another class/interface.");
             }
 
-            if (type.IsGenericType)
+            if (type.IsGenericType && !InteropHelpers.GetIsSupportedGenericType(type))
             {
-                var foundSupported = false;
-
-                foreach (var gType in _allowedGenerics)
-                {
-                    if (gType.MakeGenericType(type.GenericTypeArguments).IsAssignableFrom(type))
-                    {
-                        foundSupported = true;
-                        break;
-                    }
-                }
-
-                if (!foundSupported)
-                {
-                    throw new ClrScriptInteropException($"'{type}' is an invalid ClrScript type. Type is not included in list of supported generics.");
-                }
+                throw new ClrScriptInteropException($"'{type}' is an invalid ClrScript type. Type is not a supported generic type.");
             }
 
             if (type.IsPointer)
             {
                 throw new ClrScriptInteropException($"'{type}' is an invalid ClrScript type. Pointers are not supported.");
+            }
+
+            if (_typeInfoByType.ContainsKey(type))
+            {
+                // type already validated and cached.
+                return;
             }
 
             var membersByName = new Dictionary<string, MemberInfo>();
@@ -105,7 +89,7 @@ namespace ClrScript.TypeManagement
             {
                 if (!typeof(ClrScriptObject).IsAssignableFrom(type)
                     && !typeof(ClrScriptArray).IsAssignableFrom(type)
-                    && type != typeof(string) 
+                    && type != typeof(string)
                     && type != typeof(double)
                     && type != typeof(bool)
                     && type.GetCustomAttribute<ClrScriptTypeAttribute>() == null)
@@ -159,7 +143,7 @@ namespace ClrScript.TypeManagement
                 return info;
             }
 
-            ValidateType(type);
+            ValidatePrepareType(type);
             return _typeInfoByType.GetValueOrDefault(type);
         }
 
@@ -197,7 +181,7 @@ namespace ClrScript.TypeManagement
                         }
                     }
 
-                    ValidateType(prop.PropertyType);
+                    ValidatePrepareType(prop.PropertyType);
                 }
                 else if (member is FieldInfo field)
                 {
@@ -213,7 +197,7 @@ namespace ClrScript.TypeManagement
                             $" a ClrScript field. Static fields are not supported.");
                     }
 
-                    ValidateType(field.FieldType);
+                    ValidatePrepareType(field.FieldType);
                 }
                 else if (member is MethodInfo method)
                 {
@@ -267,12 +251,12 @@ namespace ClrScript.TypeManagement
 
                     if (method.ReturnType != typeof(void))
                     {
-                        ValidateType(method.ReturnType);
+                        ValidatePrepareType(method.ReturnType);
                     }
 
                     foreach (var paramInfo in parameters)
                     {
-                        ValidateType(paramInfo.ParameterType);
+                        ValidatePrepareType(paramInfo.ParameterType);
                     }
                 }
 

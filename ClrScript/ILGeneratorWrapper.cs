@@ -340,6 +340,11 @@ namespace ClrScript
             Emit(OpCodes.Ldarg_2);
         }
 
+        public void EmitValueTypeToNullable(Type type)
+        {
+
+        }
+
         public void EmitAssign(MemberRootAccess rootAccess, Action emitValue, ShapeInfo valueShape, CompilationContext context)
         {
             if (rootAccess.AccessType == RootMemberAccessType.Variable)
@@ -377,8 +382,38 @@ namespace ClrScript
                 member = prop;
             }
 
-            EmitAssign(emitValue, () => memberAccess.Expr.Accept(context.ExpressionCompiler),
-                member, valueShape);
+            if (member != null)
+            {
+                EmitAssign(emitValue, () => memberAccess.Expr.Accept(context.ExpressionCompiler),
+                    member, valueShape);
+            }
+            else
+            {
+                throw new NotImplementedException("Dynamic assign");
+            }
+        }
+
+        public void EmitAssign(Indexer indexer, Action emitValue, ShapeInfo valueShape, CompilationContext context)
+        {
+            var assigneeShape = context.ShapeTable.GetShape(indexer.Callee);
+
+            if (assigneeShape is ClrScriptArrayShape || assigneeShape is TypeShape)
+            {
+                var indexerProp = context.TypeManager
+                    .GetTypeInfo(assigneeShape.InferredType)
+                    .GetIndexer();
+
+                EmitAssign(emitValue, () =>
+                {
+                    indexer.Callee.Accept(context.ExpressionCompiler);
+                    indexer.Expression.Accept(context.ExpressionCompiler);
+                },
+                indexerProp, valueShape);
+            }
+            else
+            {
+                throw new NotImplementedException("Dynamic assign");
+            }
         }
 
         public void EmitAssign(Action emitValue,
@@ -406,7 +441,7 @@ namespace ClrScript
             var memberAssignIsSupportedNum = InteropHelpers.GetIsSupportedNumericInteropType(memberAssignType);
             var expressionType = valueShape?.InferredType ?? typeof(object);
 
-            if (expressionType == memberAssignType)
+            if (memberAssignType.IsAssignableFrom(expressionType))
             {
                 // direct assign, easy and fast
                 emitLdAssigneObject();
@@ -477,7 +512,7 @@ namespace ClrScript
                         Emit(OpCodes.Call, typeof(object).GetMethod("GetType")); // Stack: [instance, value, type]
                         Emit(OpCodes.Ldtoken, memberAssignType); // Stack: [instance, value, type, token]
                         Emit(OpCodes.Call, typeof(Type).GetMethod("GetTypeFromHandle", new[] { typeof(RuntimeTypeHandle) })); // Stack: [instance, value, type, type]
-                        Emit(OpCodes.Call, typeof(Type).GetMethod("op_Equality", new Type[] { typeof(Type), typeof(Type) })); // Stack: [instance, value, bool]
+                        Emit(OpCodes.Call, typeof(Helpers).GetMethod(nameof(Helpers.GetIsAssignableTo))); // Stack: [instance, value, bool]
                         Emit(OpCodes.Brfalse_S, lblFailure); // Stack: [instance, value]
 
                         if (memberAssignType.IsValueType)
@@ -589,6 +624,7 @@ namespace ClrScript
 
         public override string ToString()
         {
+            ;
             return string.Join(Environment.NewLine, _instructionsRendered);
         }
     }
