@@ -238,6 +238,28 @@ namespace ClrScript
             _ilGenerator.UsingNamespace(usingNamespace);
         }
 
+        public void EmitLoadArg(int index)
+        {
+            switch (index)
+            {
+                case 0:
+                    Emit(OpCodes.Ldarg_0);
+                    break;
+                case 1: 
+                    Emit(OpCodes.Ldarg_1);
+                    break;
+                case 2:
+                    Emit(OpCodes.Ldarg_2);
+                    break;
+                case 3:
+                    Emit(OpCodes.Ldarg_3);
+                    break;
+                default:
+                    Emit(OpCodes.Ldarg, index);
+                    break;
+            }
+        }
+
         public void EmitBoxIfNeeded(Element currentElement, Element previousElement, ShapeTable shapeTable)
         {
             var currentShapeInfo = shapeTable.GetShape(currentElement);

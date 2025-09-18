@@ -14,10 +14,10 @@ namespace ClrScript.Visitation.Compilation
     {
         public ClrScriptRoot(CompilationContext context) : base(context)
         {
-            Builder = context.RootClrScriptTypeBuilder.DefineMethod("Main", MethodAttributes.Public | MethodAttributes.Virtual,
+            var builder = context.RootClrScriptTypeBuilder.DefineMethod("Main", MethodAttributes.Public | MethodAttributes.Virtual,
                 typeof(object), new Type[] { context.InType, typeof(TypeManager) });
 
-            Generator = new ILGeneratorWrapper(Builder.GetILGenerator());
+            Generator = new ILGeneratorWrapper(builder.GetILGenerator());
         }
     }
 }

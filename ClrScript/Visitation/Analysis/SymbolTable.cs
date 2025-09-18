@@ -12,12 +12,7 @@ namespace ClrScript.Visitation.Analysis
 {
     class SymbolTable
     {
-        readonly Dictionary<Element, Symbol> _symbolsByElement 
-            = new Dictionary<Element, Symbol>();
-
         public Scope CurrentScope { get; private set; }
-
-        public IReadOnlyDictionary<Element, Symbol> SymbolsByElement => _symbolsByElement;
 
         public void BeginScope(ScopeKind kind)
         {
@@ -27,21 +22,6 @@ namespace ClrScript.Visitation.Analysis
         public void EndScope()
         {
             CurrentScope = CurrentScope.Parent;
-        }
-
-        public Symbol GetSymbolFor(Element element)
-        {
-            if (_symbolsByElement.TryGetValue(element, out Symbol symbol))
-            {
-                return symbol;
-            }
-
-            return null;
-        }
-
-        public void SetSymbolFor(Element element, Symbol symbol)
-        {
-            _symbolsByElement[element] = symbol;
         }
     }
 

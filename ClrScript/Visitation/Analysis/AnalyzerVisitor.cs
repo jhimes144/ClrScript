@@ -21,6 +21,12 @@ namespace ClrScript.Visitation.Analysis
         readonly ShapeTable _shapeTable;
         readonly Type _inType;
 
+        readonly LambdaAnalysisRecursionDetector _recursionDetector 
+            = new LambdaAnalysisRecursionDetector();
+
+        IReadOnlyList<ShapeInfo> _curLambdaArgShapes;
+        ShapeInfo _curLambdaReturnShape = UndeterminedShape.Instance;
+
         public AnalyzerVisitor(SymbolTable symbolTable,
             TypeManager typeManager,
             ShapeTable shapeTable,
@@ -46,11 +52,13 @@ namespace ClrScript.Visitation.Analysis
 
                 if (existingSymbol != null)
                 {
+                    rootAccess.AccessType = RootMemberAccessType.Variable;
+
                     var declaration = existingSymbol.Element as VarStmt;
                     var derivedShape = _shapeTable.DeriveShape(declaration, assignStmt.ExprAssignValue);
                     _shapeTable.SetShape(declaration, derivedShape, true);
 
-                    rootAccess.AccessType = RootMemberAccessType.Variable;
+                    
                     _shapeTable.SetShape(rootAccess, derivedShape);
                     return;
                 }
@@ -132,6 +140,7 @@ namespace ClrScript.Visitation.Analysis
                 }
                 else if (calleeShape is TypeShape typeShape)
                 {
+                    throw new NotImplementedException();
                     return;
                     //var indexerProp = _typeManager
                     //    .GetTypeInfo(typeShape.InferredType)?
@@ -184,6 +193,7 @@ namespace ClrScript.Visitation.Analysis
         public void VisitCall(Call call)
         {
             call.Callee.Accept(this);
+            var calleeShape = _shapeTable.GetShape(call.Callee);
 
             foreach (var arg in call.Arguments)
             {
@@ -200,7 +210,80 @@ namespace ClrScript.Visitation.Analysis
                     _shapeTable.GetShape(call.Arguments[0]));
             }
 
-            _shapeTable.SetShape(call, _shapeTable.GetShape(call.Callee));
+            // special case: lambdas
+            if (calleeShape is MethodShape methodShape && !methodShape.IsTypeMethod)
+            {
+                var argShapes = new List<ShapeInfo>();
+
+                foreach (var arg in call.Arguments)
+                {
+                    argShapes.Add(_shapeTable.GetShape(arg));
+                }
+
+                if (!insureLambdaCallSignature(methodShape, argShapes))
+                {
+                    // we are in recursion. override callee to unknown shape
+                    //_shapeTable.SetShape(call.Callee, UnknownShape.Instance, true);
+                    //_shapeTable.SetShape(call, calleeShape);
+                    return;
+                }
+            }
+
+            _shapeTable.SetShape(call, calleeShape);
+        }
+
+        bool insureLambdaCallSignature(MethodShape methodShape, IReadOnlyList<ShapeInfo> argShapes)
+        {
+            // check if we are entering recursion
+            if (_recursionDetector.Enter(methodShape.Declaration))
+            {
+                return false;
+            }
+
+            if (methodShape.GetMatchingSignature(argShapes) != null)
+            {
+                return true;
+            }
+
+            _symbolTable.BeginScope(ScopeKind.Lambda);
+
+            var index = 0;
+
+            foreach (var param in methodShape.Declaration.Parameters)
+            {
+                var existingSymbol = _symbolTable.CurrentScope.FindSymbolGoingUp
+                    (param.Value, out var foundScopeExist);
+
+                if (existingSymbol != null)
+                {
+                    _errors.Add(new ClrScriptCompileError($"Function parameter has a bad name. " +
+                            $"'{param.Value}' has already been declared in an enclosing scope.", methodShape.Declaration));
+
+                    return false;
+                }
+
+                var symbol = new LambdaParamSymbol(index, param.Value,
+                    methodShape.Declaration, _symbolTable.CurrentScope);
+
+                _symbolTable.CurrentScope.RegisterSymbol(param.Value, symbol);
+                index++;
+            }
+
+            _curLambdaArgShapes = argShapes;
+            _shapeTable.EnterShapeScope();
+
+            methodShape.Declaration.Body.Accept(this);
+
+            var shapes = _shapeTable.EndShapeScope();
+            _symbolTable.EndScope();
+
+            methodShape.CallSignatures.Add(new CallSignature(shapes, _curLambdaReturnShape, argShapes));
+
+            _recursionDetector.RollbackTo(methodShape.Declaration);
+            _curLambdaArgShapes = null;
+            _curLambdaReturnShape = UndeterminedShape.Instance;
+
+            return true;
         }
 
         public void VisitIndexer(Indexer indexer)
@@ -258,36 +341,9 @@ namespace ClrScript.Visitation.Analysis
 
         public void VisitLambda(Lambda lambda)
         {
-            _symbolTable.BeginScope(ScopeKind.Lambda);
-
-            var index = 0;
-
-            foreach (var param in lambda.Parameters)
-            {
-                var existingSymbol = _symbolTable.CurrentScope.FindSymbolGoingUp
-                    (param.Value, out var foundScopeExist);
-
-                if (existingSymbol != null)
-                {
-                    _errors.Add(new ClrScriptCompileError($"Function parameter has a bad name. " +
-                            $"'{param.Value}' has already been declared in an enclosing scope.", lambda));
-
-                    return;
-                }
-
-                var symbol = new LambdaParamSymbol(index, param.Value,
-                    lambda, _symbolTable.CurrentScope);
-
-                // need to support multiple symbols for an element or something
-                _symbolTable.SetSymbolFor(lambda, symbol);
-                index++;
-            }
-
-            var methodShape = new MethodShape(UndeterminedShape.Instance, 
-                lambda.Parameters.Select(_ => UndeterminedShape.Instance).ToArray());
-
-            lambda.Body.Accept(this);
-            _symbolTable.EndScope();
+            var methodShape = new MethodShape(lambda);
+            _shapeTable.SetShape(lambda, methodShape);
+            insureLambdaCallSignature(methodShape, lambda.Parameters.Select(_ => UnknownShape.Instance).ToArray());
         }
 
         public void VisitLiteral(Literal expr)
@@ -363,7 +419,14 @@ namespace ClrScript.Visitation.Analysis
                 }
                 else if (existingSymbol is LambdaParamSymbol paramSym)
                 {
-                        
+                    var lambda = (Lambda)paramSym.Element;
+                    var lambdaShape = (MethodShape)_shapeTable.GetShape(lambda);
+                    var paramShape = _curLambdaArgShapes[paramSym.ParamIndex];
+                    member.AccessType = RootMemberAccessType.LambdaArg;
+                    member.ParamIndex = paramSym.ParamIndex;
+
+                    _shapeTable.SetShape(member, paramShape);
+                    return;
                 }
 
                 _errors.Add(new ClrScriptCompileError($"'{member.Name.Value}' must point to either a const, eternal, or var declaration.", member));
@@ -442,6 +505,12 @@ namespace ClrScript.Visitation.Analysis
         public void VisitReturnStmt(ReturnStmt returnStmt)
         {
             returnStmt.Expression.Accept(this);
+
+            if (_symbolTable.CurrentScope.Kind == ScopeKind.Lambda)
+            {
+                var returnShape = _shapeTable.GetShape(returnStmt.Expression);
+                _curLambdaReturnShape = _shapeTable.DeriveShape(_curLambdaReturnShape, returnShape);
+            }
         }
 
         public void VisitUnary(Unary expr)
@@ -453,6 +522,12 @@ namespace ClrScript.Visitation.Analysis
 
         public void VisitVarStmt(VarStmt varStmt)
         {
+            if (varStmt.Initializer != null)
+            {
+                varStmt.Initializer.Accept(this);
+                _shapeTable.SetShape(varStmt, _shapeTable.GetShape(varStmt.Initializer));
+            }
+
             var existingSymbol = _symbolTable.CurrentScope.FindSymbolGoingUp
                 (varStmt.Name.Value, out var foundScopeExist);
 
@@ -487,14 +562,6 @@ namespace ClrScript.Visitation.Analysis
             {
                 VariableType = varStmt.VariableType
             };
-
-            _symbolTable.SetSymbolFor(varStmt, symbol);
-
-            if (varStmt.Initializer != null)
-            {
-                varStmt.Initializer.Accept(this);
-                _shapeTable.SetShape(varStmt, _shapeTable.GetShape(varStmt.Initializer));
-            }
         }
 
         public void VisitWhileStmt(WhileStmt whileStmt)
@@ -556,7 +623,8 @@ namespace ClrScript.Visitation.Analysis
 
                 var args = method.GetParameters()
                     .Select(p => new TypeShape(p.ParameterType))
-                    .ToArray();
+                    .Cast<ShapeInfo>()
+                    .ToList();
 
                 return new MethodShape(returnShape, args);
             }

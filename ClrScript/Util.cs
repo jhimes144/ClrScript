@@ -28,6 +28,16 @@ namespace ClrScript
             return instances;
         }
 
+        public static T TryGetAtIndex<T>(this IReadOnlyList<T> list, int index)
+        {
+            if (index >= 0 && list.Count < index)
+            {
+                return list[index];
+            }
+
+            return default;
+        }
+
         public static string ConvertStrToCamel(string input)
         {
             if (string.IsNullOrEmpty(input))
@@ -67,6 +77,52 @@ namespace ClrScript
             }
 
             return result.ToString();
+        }
+
+        public static Type CreateDelegateType(Type returnType, params Type[] types)
+        {
+            var allTypes = new List<Type>(types);
+            allTypes.Add(returnType);
+
+            switch (allTypes.Count)
+            {
+                case 1:
+                    return typeof(Func<>).MakeGenericType(returnType);
+                case 2:
+                    return typeof(Func<,>).MakeGenericType(allTypes.ToArray());
+                case 3:
+                    return typeof(Func<,,>).MakeGenericType(allTypes.ToArray());
+                case 4:
+                    return typeof(Func<,,,>).MakeGenericType(allTypes.ToArray());
+                case 5:
+                    return typeof(Func<,,,,>).MakeGenericType(allTypes.ToArray());
+                case 6:
+                    return typeof(Func<,,,,,>).MakeGenericType(allTypes.ToArray());
+                case 7:
+                    return typeof(Func<,,,,,,>).MakeGenericType(allTypes.ToArray());
+                case 8:
+                    return typeof(Func<,,,,,,,>).MakeGenericType(allTypes.ToArray());
+                case 9:
+                    return typeof(Func<,,,,,,,,>).MakeGenericType(allTypes.ToArray());
+                case 10:
+                    return typeof(Func<,,,,,,,,,>).MakeGenericType(allTypes.ToArray());
+                case 11:
+                    return typeof(Func<,,,,,,,,,,>).MakeGenericType(allTypes.ToArray());
+                case 12:
+                    return typeof(Func<,,,,,,,,,,,>).MakeGenericType(allTypes.ToArray());
+                case 13:
+                    return typeof(Func<,,,,,,,,,,,,>).MakeGenericType(allTypes.ToArray());
+                case 14:
+                    return typeof(Func<,,,,,,,,,,,,,>).MakeGenericType(allTypes.ToArray());
+                case 15:
+                    return typeof(Func<,,,,,,,,,,,,,,>).MakeGenericType(allTypes.ToArray());
+                case 16:
+                    return typeof(Func<,,,,,,,,,,,,,,,>).MakeGenericType(allTypes.ToArray());
+                case 17:
+                    return typeof(Func<,,,,,,,,,,,,,,,,>).MakeGenericType(allTypes.ToArray());
+                default:
+                    throw new ArgumentException($"Too many parameters ({types.Length}). Maximum supported is 16 parameters plus return type.");
+            }
         }
     }
 }

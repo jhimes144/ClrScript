@@ -1,24 +1,31 @@
 ﻿using ClrScript.Elements;
+using ClrScript.Elements.Expressions;
 using ClrScript.Runtime.Builtins;
+using ClrScript.Visitation.Analysis;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
+using ShapeCollection = System.Collections.Generic.Dictionary<ClrScript.Elements.Element, ClrScript.Visitation.Analysis.ShapeInfo>;
+
 
 namespace ClrScript.Visitation.Analysis
 {
     class ShapeTable
     {
-        readonly Dictionary<Element, ShapeInfo> _shapeInfoByElement 
-            = new Dictionary<Element, ShapeInfo>();
+        readonly ShapeCollection _rootShapeCollection 
+            = new ShapeCollection();
 
         readonly HashSet<ClrScriptObjectShape> _registeredObjectShapes 
             = new HashSet<ClrScriptObjectShape>();
 
-        public ShapeInfo InTypeShape { get; }
+        readonly List<ShapeCollection> _shapeScopes = new List<ShapeCollection>();
+
+        public TypeShape InTypeShape { get; }
 
         public ShapeTable(Type inType)
         {
@@ -27,7 +34,83 @@ namespace ClrScript.Visitation.Analysis
 
         public void GenerateRuntimeTypes(ModuleBuilder moduleBuilder)
         {
+            Debug.Assert(_shapeScopes.Count == 0);
             generateObjTypes(moduleBuilder);
+            generateLambdas(moduleBuilder);
+        }
+
+        void generateLambdas(ModuleBuilder moduleBuilder)
+        {
+            var capturelessLambdaContainerType = moduleBuilder.DefineType("ClrScript_Lambda_Captureless_Container",
+                TypeAttributes.NotPublic | TypeAttributes.Sealed);
+
+            void createLambdas(IReadOnlyDictionary<Element, ShapeInfo> allShapes)
+            {
+                var methodShapes = allShapes
+                    .Select(p => p.Value)
+                    .Where(p => p is MethodShape m && m.Declaration != null)
+                    .Distinct()
+                    .Cast<MethodShape>();
+
+                foreach (var shape in methodShapes)
+                {
+                    var distinctSigs = new List<CallSignature>();
+
+                    foreach (var sig in shape.CallSignatures)
+                    {
+                        var alreadyContains = false;
+
+                        foreach (var oSig in distinctSigs)
+                        {
+                            if (oSig.Return.InferredType != sig.Return.InferredType)
+                            {
+                                continue;
+                            }
+
+                            if (!oSig.Arguments.Select(a => a.InferredType)
+                                .SequenceEqual(sig.Arguments.Select(a => a.InferredType)))
+                            {
+                                continue;
+                            }
+
+                            alreadyContains = true;
+                            break;
+                        }
+
+                        if (!alreadyContains)
+                        {
+                            distinctSigs.Add(sig);
+                        }
+                    }
+
+                    foreach (var sig in distinctSigs)
+                    {
+                        createLambdas(sig.ShapesByElement);
+
+                        var genName = $"ClrScript_Lambda_Gen_{Guid.NewGuid().ToString().Replace('-', '_')}";
+
+                        var methodArgTypes = new List<Type>
+                        {
+                            InTypeShape.InferredType
+                        };
+
+                        methodArgTypes.AddRange(sig.Arguments.Select(a => a.InferredType));
+
+                        // TODO: need to pass type manager
+                        // TODO: have path for capturing variables
+                        var methodBuilder = capturelessLambdaContainerType.DefineMethod(
+                            genName,
+                            MethodAttributes.Public | MethodAttributes.Static,
+                            sig.Return.InferredType,
+                            methodArgTypes.ToArray()
+                        );
+
+                        sig.GenMethodBuilder = methodBuilder;
+                    }
+                }
+            }
+
+            createLambdas(_rootShapeCollection);
         }
 
         void generateObjTypes(ModuleBuilder moduleBuilder)
@@ -111,19 +194,46 @@ namespace ClrScript.Visitation.Analysis
             }
         }
 
+        public void EnterShapeScope()
+        {
+            _shapeScopes.Add(new ShapeCollection());
+        }
+
+        public void EnterShapeScope(IReadOnlyDictionary<Element, ShapeInfo> shapes)
+        {
+            _shapeScopes.Add(shapes.ToDictionary(k => k.Key, k => k.Value));
+        }
+
+        public ShapeCollection EndShapeScope()
+        {
+            var shapeCollection = _shapeScopes[_shapeScopes.Count - 1];
+            _shapeScopes.Remove(shapeCollection);
+            return shapeCollection;
+        }
+
         public ShapeInfo GetShape(Element element)
         {
-            return _shapeInfoByElement.GetValueOrDefault(element);
+            foreach (var shapeCol in _shapeScopes)
+            {
+                if (shapeCol.TryGetValue(element, out var shape))
+                {
+                    return shape;
+                }
+            }
+
+            return _rootShapeCollection.GetValueOrDefault(element);
         }
 
         public void SetShape(Element element, ShapeInfo shapeInfo, bool overrid = false)
         {
-            if (!overrid && _shapeInfoByElement.ContainsKey(element) && shapeInfo != null)
+            var col = _shapeScopes.LastOrDefault() ?? _rootShapeCollection;
+
+            if (!overrid && col.ContainsKey(element))
             {
                 throw new Exception("Element already has shape defined.");
             }
 
-            _shapeInfoByElement[element] = shapeInfo;
+            col[element] = shapeInfo;
 
             if (shapeInfo is ClrScriptObjectShape objectShape)
             {
@@ -161,11 +271,9 @@ namespace ClrScript.Visitation.Analysis
             }
 
             if (masterShape is MethodShape m1
-                && sourceShape is MethodShape m2
-                && m1.InferredType == m2.InferredType)
+                && sourceShape is MethodShape m2)
             {
-                // this cannot be inferred type
-                return masterShape;
+                return UnknownShape.Instance;
             }
 
             if (masterShape is ClrScriptArrayShape a1
@@ -211,8 +319,8 @@ namespace ClrScript.Visitation.Analysis
     abstract class ShapeInfo
     {
         /// <summary>
-        /// The inferred type. IMPORTANT: This is usually not accessible until after types are generated
-        /// UNLESS the shape is a TypeShape.
+        /// The inferred type. IMPORTANT: Certain shapes, like ClrScriptObject, will not have their final InferredType until after
+        /// the type generation process.
         /// </summary>
         public abstract Type InferredType { get; }
     }
@@ -222,11 +330,51 @@ namespace ClrScript.Visitation.Analysis
         public override Type InferredType => typeof(object);
 
         public static UnknownShape Instance { get; } = new UnknownShape();
+
+        public override bool Equals(object obj)
+        {
+            return obj is UnknownShape other;
+        }
+
+        public override int GetHashCode()
+        {
+            return 0;
+        }
+
+        public static bool operator ==(UnknownShape left, UnknownShape right)
+        {
+            return true;
+        }
+
+        public static bool operator !=(UnknownShape left, UnknownShape right)
+        {
+            return false;
+        }
     }
 
     class UndeterminedShape : UnknownShape
     {
         public static new UndeterminedShape Instance { get; } = new UndeterminedShape();
+
+        public override bool Equals(object obj)
+        {
+            return obj is UndeterminedShape other;
+        }
+
+        public override int GetHashCode()
+        {
+            return 0;
+        }
+
+        public static bool operator ==(UndeterminedShape left, UndeterminedShape right)
+        {
+            return true;
+        }
+
+        public static bool operator !=(UndeterminedShape left, UndeterminedShape right)
+        {
+            return false;
+        }
     }
 
     class TypeShape : ShapeInfo
@@ -237,30 +385,118 @@ namespace ClrScript.Visitation.Analysis
         {
             InferredType = inferredType;
         }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is TypeShape other)
+            {
+                return InferredType == other.InferredType;
+            }
+                
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return InferredType?.GetHashCode() ?? 0;
+        }
+
+        public static bool operator ==(TypeShape left, TypeShape right)
+        {
+            if (ReferenceEquals(left, right))
+            {
+                return true;
+            }
+
+            if (left is null || right is null)
+            {
+                return false;
+            }
+
+            return left.InferredType == right.InferredType;
+        }
+
+        public static bool operator !=(TypeShape left, TypeShape right)
+        {
+            return !(left == right);
+        }
     }
 
     class MethodShape : ShapeInfo
     {
-        public override Type InferredType => Return?.InferredType;
+        public override Type InferredType => CallSignatures.FirstOrDefault()?.Return?.InferredType;
 
+        /// <summary>
+        /// Indicates method is not a lambda
+        /// </summary>
         public bool IsTypeMethod { get; }
 
-        public TypeShape DelegateShape { get; }
+        // We will distinct by inferred types at the compilation phase
+        public List<CallSignature> CallSignatures { get; }
 
+        // we can be sure the declaration belongs to this shape, because if a variable or member
+        // changes, than the the method shape is discarded
+        public Lambda Declaration { get; }
+
+        public CallSignature GetMatchingSignature(IReadOnlyList<ShapeInfo> argShapes)
+        {
+            foreach (var sig in CallSignatures)
+            {
+                if (sig.Arguments.Count != argShapes.Count)
+                {
+                    continue;
+                }
+
+                var argsMatch = true;
+                for (var i = 0; i < sig.Arguments.Count; i++)
+                {
+                    if (sig.Arguments[i] != argShapes[i])
+                    {
+                        argsMatch = false;
+                        break;
+                    }
+                }
+
+                if (argsMatch)
+                {
+                    return sig;
+                }
+            }
+
+            return null;
+        }
+
+        public MethodShape(ShapeInfo @return, List<ShapeInfo> arguments)
+        {
+            IsTypeMethod = true;
+
+            CallSignatures = new List<CallSignature>
+            {
+                new CallSignature(null, @return, arguments)
+            };
+        }
+
+        public MethodShape(Lambda declaration)
+        {
+            Declaration = declaration;
+            CallSignatures = new List<CallSignature>();
+        }
+    }
+
+    class CallSignature
+    {
         public ShapeInfo Return { get; }
 
         public IReadOnlyList<ShapeInfo> Arguments { get; }
 
-        public MethodShape(ShapeInfo @return, IReadOnlyList<ShapeInfo> arguments)
-        {
-            IsTypeMethod = true;
-            Return = @return;
-            Arguments = arguments;
-        }
+        public IReadOnlyDictionary<Element, ShapeInfo> ShapesByElement { get; }
 
-        public MethodShape(TypeShape delegateShape, ShapeInfo @return, IReadOnlyList<ShapeInfo> arguments)
+        public MethodBuilder GenMethodBuilder { get; set; }
+
+        public CallSignature(IReadOnlyDictionary<Element, ShapeInfo> shapes, 
+            ShapeInfo @return, IReadOnlyList<ShapeInfo> arguments)
         {
-            DelegateShape = delegateShape;
+            ShapesByElement = shapes;
             Return = @return;
             Arguments = arguments;
         }
@@ -296,8 +532,7 @@ namespace ClrScript.Visitation.Analysis
 
     class ClrScriptObjectShape : ShapeInfo
     {
-        public override Type InferredType => GetMasterShape().GeneratedClrScriptObjType
-            ?? throw new Exception("Clr type not generated");
+        public override Type InferredType => GetMasterShape().GeneratedClrScriptObjType;
 
         public ClrScriptObjectShape ParentShape { get; set; }
 
@@ -318,7 +553,7 @@ namespace ClrScript.Visitation.Analysis
             }
         }
 
-        public Type GeneratedClrScriptObjType { get; set; }
+        public Type GeneratedClrScriptObjType { get; set; } = typeof(ClrScriptObject);
 
         // This is on purpose mutable dictionary, because it translates to reference tracking of
         // objects

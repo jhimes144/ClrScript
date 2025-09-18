@@ -12,7 +12,8 @@ namespace ClrScript.Elements.Expressions
     enum RootMemberAccessType
     {
         Variable,
-        External
+        External,
+        LambdaArg
     }
 
     class MemberRootAccess : Expr
@@ -22,6 +23,11 @@ namespace ClrScript.Elements.Expressions
         public override Token StartLocation => Name;
 
         public RootMemberAccessType AccessType { get; set; }
+
+        /// <summary>
+        /// Only applicable if access type is LambdaArg
+        /// </summary>
+        public int ParamIndex { get; set; }
 
         public MemberRootAccess(Token name)
         {

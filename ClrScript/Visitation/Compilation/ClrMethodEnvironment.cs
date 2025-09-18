@@ -11,7 +11,6 @@ namespace ClrScript.Visitation.Compilation
     abstract class ClrMethodEnvironment
     {
         public ILGeneratorWrapper Generator { get; protected set; }
-        public MethodBuilder Builder { get; protected set; }
 
         readonly Dictionary<string, LocalBuilder> _localsByName 
             = new Dictionary<string, LocalBuilder>();

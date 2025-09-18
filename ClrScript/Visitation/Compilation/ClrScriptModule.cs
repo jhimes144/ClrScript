@@ -20,7 +20,7 @@ namespace ClrScript.Visitation.Compilation
             Name = name;
             //Builder = clankType.DefineMethod(name, MethodAttributes.Private, null, null);
 
-            Generator = new ILGeneratorWrapper(Builder.GetILGenerator());
+            // Generator = new ILGeneratorWrapper(Builder.GetILGenerator());
         }
     }
 }

@@ -171,7 +171,7 @@ namespace ClrScript.TypeManagement
                     if (prop.GetIndexParameters().Length > 0)
                     {
                         var haveOtherIndexers = membersByName.Values
-                            .Any(m => m is PropertyInfo otherProp 
+                            .Any(m => m is PropertyInfo otherProp
                                 && otherProp.GetIndexParameters().Length > 0);
 
                         if (haveOtherIndexers)

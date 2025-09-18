@@ -13,6 +13,8 @@ namespace ClrScript.Visitation.Compilation
 {
     class CompilationContext
     {
+        readonly Stack<ClrMethodEnvironment> _envs = new Stack<ClrMethodEnvironment>();
+
         public ClrScriptCompilationSettings Settings { get; }
 
         public StatementCompiler StatementCompiler { get; }
@@ -29,7 +31,7 @@ namespace ClrScript.Visitation.Compilation
 
         public ClrScriptRoot Root { get; }
 
-        public ClrMethodEnvironment CurrentEnv { get; private set; }
+        public ClrMethodEnvironment CurrentEnv => _envs.Peek();
 
         public List<ClrScriptModule> Modules { get; }
 
@@ -63,11 +65,21 @@ namespace ClrScript.Visitation.Compilation
             SymbolTable = symbolTable;
             TypeManager = typeManager;
             Root = new ClrScriptRoot(this);
-            CurrentEnv = Root;
+            _envs.Push(Root);
             Modules = new List<ClrScriptModule>();
 
             StatementCompiler = new StatementCompiler(this);
             ExpressionCompiler = new ExpressionCompiler(this);
+        }
+
+        public void EnterEnvironment(ClrMethodEnvironment env)
+        {
+            _envs.Push(env);
+        }
+
+        public void ExitEnvironment()
+        {
+            _envs.Pop();
         }
     }
 }

@@ -182,7 +182,7 @@ namespace ClrScript.Visitation.Compilation
 
         public void VisitBlockExpr(BlockExpr blockExpr)
         {
-            throw new NotImplementedException();
+            blockExpr.Block.Accept(_context.StatementCompiler);
         }
 
         public void VisitGrouping(Grouping expr)
@@ -192,7 +192,18 @@ namespace ClrScript.Visitation.Compilation
 
         public void VisitLambda(Lambda lambda)
         {
-            throw new NotImplementedException();
+            var methodShape = (MethodShape)_context.ShapeTable.GetShape(lambda);
+
+            foreach (var sig in methodShape.CallSignatures)
+            {
+                var env = new LambdaMethodEnvironment(sig.GenMethod, _context);
+                _context.EnterEnvironment(env);
+                _context.ShapeTable.EnterShapeScope(sig.ShapesByElement);
+                lambda.Body.Accept(this);
+                _context.ExitEnvironment();
+                _context.ShapeTable.EndShapeScope();
+            }
+
         }
 
         public void VisitLiteral(Literal expr)
@@ -264,9 +275,16 @@ namespace ClrScript.Visitation.Compilation
             }
             else if (var.AccessType == RootMemberAccessType.External)
             {
+                // TODO: Not arg 1 in lambdas
                 _context.CurrentEnv.Generator.Emit(OpCodes.Ldarg_1);
                 _context.CurrentEnv.Generator.EmitMemberAccess(_context.ShapeTable.InTypeShape,
                     var.Name.Value, _context.ShapeTable.GetShape(var), _context);
+            }
+            else if (var.AccessType == RootMemberAccessType.LambdaArg)
+            {
+                // + 1 offset is the in type being passed.
+                // TODO: Soon offset will be greater because we also need to pass type manager. Store offset in environment
+                _context.CurrentEnv.Generator.EmitLoadArg(var.ParamIndex + 1);
             }
             else
             {
@@ -470,44 +488,44 @@ namespace ClrScript.Visitation.Compilation
                 }
                 else
                 {
-                    if (CompileHelpers.GetCanBeOptimized(methodShape.DelegateShape.InferredType, call, _context.ShapeTable))
-                    {
-                        var methodArgs = methodShape.DelegateShape.InferredType
-                            .GetMethod("Invoke")
-                            .GetParameters();
+                    //if (CompileHelpers.GetCanBeOptimized(methodShape.DelegateShape.InferredType, call, _context.ShapeTable))
+                    //{
+                    //    var methodArgs = methodShape.DelegateShape.InferredType
+                    //        .GetMethod("Invoke")
+                    //        .GetParameters();
 
-                        for (var i = 0; i < methodArgs.Length; i++)
-                        {
-                            var methodArgType = methodArgs[i].ParameterType;
-                            var arg = call.Arguments[i];
+                    //    for (var i = 0; i < methodArgs.Length; i++)
+                    //    {
+                    //        var methodArgType = methodArgs[i].ParameterType;
+                    //        var arg = call.Arguments[i];
 
-                            arg.Accept(this);
+                    //        arg.Accept(this);
 
-                            if (InteropHelpers.GetIsSupportedNumericInteropTypeNeedingConversion(methodArgType))
-                            {
-                                gen.EmitStackDoubleToNumericValueTypeConversion(methodArgType);
-                            }
+                    //        if (InteropHelpers.GetIsSupportedNumericInteropTypeNeedingConversion(methodArgType))
+                    //        {
+                    //            gen.EmitStackDoubleToNumericValueTypeConversion(methodArgType);
+                    //        }
 
-                            gen.EmitBoxIfNeeded(methodArgType, _context.ShapeTable.GetShape(arg).InferredType);
-                        }
+                    //        gen.EmitBoxIfNeeded(methodArgType, _context.ShapeTable.GetShape(arg).InferredType);
+                    //    }
 
-                        var invokeMethod = methodShape.InferredType.GetMethod("Invoke");
-                        gen.EmitCall(OpCodes.Callvirt, invokeMethod, null);
+                    //    var invokeMethod = methodShape.InferredType.GetMethod("Invoke");
+                    //    gen.EmitCall(OpCodes.Callvirt, invokeMethod, null);
 
-                        if (invokeMethod.ReturnType == typeof(void))
-                        {
-                            gen.Emit(OpCodes.Ldnull);
-                        }
-                        else if (InteropHelpers.GetIsSupportedNumericInteropTypeNeedingConversion(invokeMethod.ReturnType))
-                        {
-                            gen.Emit(OpCodes.Conv_R8);
-                        }
-                    }
-                    else
-                    {
-                        _context.DynamicOperationsEmitted = true;
-                        gen.EmitDynamicCall(call, this, _context.ShapeTable);
-                    }
+                    //    if (invokeMethod.ReturnType == typeof(void))
+                    //    {
+                    //        gen.Emit(OpCodes.Ldnull);
+                    //    }
+                    //    else if (InteropHelpers.GetIsSupportedNumericInteropTypeNeedingConversion(invokeMethod.ReturnType))
+                    //    {
+                    //        gen.Emit(OpCodes.Conv_R8);
+                    //    }
+                    //}
+                    //else
+                    //{
+                    //    _context.DynamicOperationsEmitted = true;
+                    //    gen.EmitDynamicCall(call, this, _context.ShapeTable);
+                    //}
                 }
             }
             else
