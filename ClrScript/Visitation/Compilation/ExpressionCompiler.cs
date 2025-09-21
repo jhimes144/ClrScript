@@ -215,7 +215,7 @@ namespace ClrScript.Visitation.Compilation
             //_context.CurrentEnv.Generator.Emit(OpCodes.Pop);
 
             _context.CurrentEnv.Generator.Emit(OpCodes.Ldnull);
-            _context.CurrentEnv.Generator.Emit(OpCodes.Ldftn, typeof(TestLambda).GetMethod(nameof(TestLambda.Testf)));
+            _context.CurrentEnv.Generator.Emit(OpCodes.Ldftn, method);
 
             var delConstructor = sig.GenDelegateType.GetConstructors()[0];
             _context.CurrentEnv.Generator.Emit(OpCodes.Newobj, delConstructor);

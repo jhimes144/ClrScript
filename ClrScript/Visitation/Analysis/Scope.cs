@@ -35,7 +35,11 @@ namespace ClrScript.Visitation.Analysis
 
         public void RegisterSymbol(string name, Symbol symbol)
         {
-            Debug.Assert(!_symbolsByName.ContainsKey(name));
+            if (_symbolsByName.ContainsKey(name))
+            {
+                throw new Exception("Symbol already registered.");
+            }
+
             _symbolsByName[name] = symbol;
         }
 

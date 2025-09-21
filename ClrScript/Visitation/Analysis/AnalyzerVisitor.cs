@@ -297,7 +297,6 @@ namespace ClrScript.Visitation.Analysis
                 var symbol = new LambdaParamSymbol(index, param.Value,
                     methodShape.Declaration, _symbolTable.CurrentScope);
 
-                _symbolTable.CurrentScope.RegisterSymbol(param.Value, symbol);
                 index++;
             }
 
