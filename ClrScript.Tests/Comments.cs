@@ -67,13 +67,12 @@ namespace ClrScript.Tests
                     return sum + product;
                 };
                 
-                return calculate;
+                return calculate(12, 12);
             ";
 
             var context = ClrScriptContext<object>.Compile(code);
             var result = context.Run();
-            //var test = result.GetType().GetMethod("Invoke").Invoke(result, [12d, 12d]);
-            Assert.AreEqual(19.0, result); // (3 + 4) + (3 * 4) = 7 + 12 = 19
+            Assert.AreEqual(168d, result);
         }
 
         [TestMethod]

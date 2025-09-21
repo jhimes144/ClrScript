@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -208,13 +209,13 @@ namespace ClrScript.Visitation.Compilation
             var type = sig.MethodContainerType.CreateType();
             var method = type.GetMethod(sig.GenMethodBuilder.Name);
 
-            _context.CurrentEnv.Generator.Emit(OpCodes.Ldc_R8, 12d);
-            _context.CurrentEnv.Generator.Emit(OpCodes.Ldc_R8, 12d);
-            _context.CurrentEnv.Generator.Emit(OpCodes.Call, method);
-            _context.CurrentEnv.Generator.Emit(OpCodes.Pop);
+            //_context.CurrentEnv.Generator.Emit(OpCodes.Ldc_R8, 12d);
+            //_context.CurrentEnv.Generator.Emit(OpCodes.Ldc_R8, 12d);
+            //_context.CurrentEnv.Generator.Emit(OpCodes.Call, method);
+            //_context.CurrentEnv.Generator.Emit(OpCodes.Pop);
 
             _context.CurrentEnv.Generator.Emit(OpCodes.Ldnull);
-            _context.CurrentEnv.Generator.Emit(OpCodes.Ldftn, method);
+            _context.CurrentEnv.Generator.Emit(OpCodes.Ldftn, typeof(TestLambda).GetMethod(nameof(TestLambda.Testf)));
 
             var delConstructor = sig.GenDelegateType.GetConstructors()[0];
             _context.CurrentEnv.Generator.Emit(OpCodes.Newobj, delConstructor);
@@ -440,7 +441,7 @@ namespace ClrScript.Visitation.Compilation
         public void VisitCall(Call call)
         {
             var gen = _context.CurrentEnv.Generator;
-            var shape = _context.ShapeTable.GetShape(call);
+            var shape = _context.ShapeTable.GetShape(call.Callee);
 
             call.Callee.Accept(this);
 

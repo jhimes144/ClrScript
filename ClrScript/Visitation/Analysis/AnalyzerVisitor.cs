@@ -235,9 +235,13 @@ namespace ClrScript.Visitation.Analysis
                     //_shapeTable.SetShape(call, calleeShape);
                     return;
                 }
-            }
 
-            _shapeTable.SetShape(call, calleeShape);
+                _shapeTable.SetShape(call, methodShape.CallSignature?.Return ?? UnknownShape.Instance);
+            }
+            else
+            {
+                _shapeTable.SetShape(call, UnknownShape.Instance);
+            }
         }
 
         bool insureLambdaCallSignature(MethodShape methodShape, IReadOnlyList<ShapeInfo> argShapes)

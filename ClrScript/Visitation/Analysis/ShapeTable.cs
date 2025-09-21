@@ -267,7 +267,7 @@ namespace ClrScript.Visitation.Analysis
 
     class MethodShape : ShapeInfo
     {
-        public override Type InferredType => CallSignature?.Return?.InferredType;
+        public override Type InferredType => CallSignature?.GenDelegateType;
 
         /// <summary>
         /// Indicates method is not a lambda
