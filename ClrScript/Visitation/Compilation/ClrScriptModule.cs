@@ -18,9 +18,6 @@ namespace ClrScript.Visitation.Compilation
         public ClrScriptModule(string name, CompilationContext context) : base(context)
         {
             Name = name;
-            //Builder = clankType.DefineMethod(name, MethodAttributes.Private, null, null);
-
-            // Generator = new ILGeneratorWrapper(Builder.GetILGenerator());
         }
     }
 }

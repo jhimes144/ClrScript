@@ -12,11 +12,45 @@ namespace ClrScript.Visitation.Analysis
 {
     class SymbolTable
     {
+        readonly Dictionary<Element, Scope> _scopesByElement 
+            = new Dictionary<Element, Scope>();
+
+        Scope _rootScope;
+
         public Scope CurrentScope { get; private set; }
 
-        public void BeginScope(ScopeKind kind)
+        public void BeginScope(Element source)
+        {
+            if (_scopesByElement.TryGetValue(source, out var scope))
+            {
+                CurrentScope = scope;
+            }
+            else
+            {
+                throw new Exception("No scope declared for element.");
+            }
+        }
+
+        public void BeginRootScope()
+        {
+            CurrentScope = _rootScope;
+        }
+
+        public void DeclareRootScope()
+        {
+            if (_rootScope != null)
+            {
+                throw new Exception("Cannot start root scope. Scope already started.");
+            }
+
+            CurrentScope = new Scope(ScopeKind.Root, null);
+            _rootScope = CurrentScope;
+        }
+
+        public void DeclareScope(Element source, ScopeKind kind)
         {
             CurrentScope = new Scope(kind, CurrentScope);
+            _scopesByElement[source] = CurrentScope;
         }
 
         public void EndScope()

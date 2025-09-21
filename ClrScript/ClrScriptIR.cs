@@ -94,6 +94,8 @@ namespace ClrScript
                 statement.Accept(analyzer);
             }
 
+            analyzer.ShapeUnShapedLambdas();
+
             var errors = allErrors.Where(e => !e.IsWarning).Reverse().ToArray();
             var warnings = allErrors.Where(e => e.IsWarning).Reverse().ToArray();
 

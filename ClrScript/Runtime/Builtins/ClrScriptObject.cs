@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace ClrScript.Runtime.Builtins
 {
     /// <summary>
-    /// Internal representation of objects in ClrScript. YOU SHOULD NOT inherit this class.
+    /// Internal representation of objects in ClrScript.
     /// </summary>
     public class ClrScriptObject
     {

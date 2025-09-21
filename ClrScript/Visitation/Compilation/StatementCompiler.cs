@@ -3,6 +3,7 @@ using ClrScript.Elements.Statements;
 using ClrScript.Interop;
 using ClrScript.Runtime;
 using ClrScript.Runtime.Builtins;
+using ClrScript.Visitation.Analysis;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,10 +25,14 @@ namespace ClrScript.Visitation.Compilation
 
         public void VisitBlock(Block block)
         {
+            _context.SymbolTable.BeginScope(block);
+
             foreach (var stmt in block.Statements)
             {
                 stmt.Accept(this);
             }
+
+            _context.SymbolTable.EndScope();
         }
 
         public void VisitExprStmt(ExpressionStmt exprStmt)
@@ -67,7 +72,7 @@ namespace ClrScript.Visitation.Compilation
             var expressionShapeInfo = _context.ShapeTable.GetShape(returnStmt.Expression);
             var inferredType = expressionShapeInfo?.InferredType;
             
-            if (inferredType?.IsValueType ?? false)
+            if (_context.SymbolTable.CurrentScope.Kind == ScopeKind.Root && (inferredType?.IsValueType ?? false))
             {
                 if (InteropHelpers.GetIsSupportedNumericInteropTypeNeedingConversion(inferredType))
                 {

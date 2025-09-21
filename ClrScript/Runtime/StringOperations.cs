@@ -9,25 +9,25 @@ namespace ClrScript.Runtime
     public static class StringOperations
     {
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static double Length(string str)
+        public static double Length(this string str)
         {
             return str.Length;
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string PadLeft(string str, double amount)
+        public static string PadLeft(this string str, double amount)
         {
             return str.PadLeft((int)amount);
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string PadRight(string str, double amount)
+        public static string PadRight(this string str, double amount)
         {
             return str.PadRight((int)amount);
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string PadLeft(string str, double amount, string paddingChar)
+        public static string PadLeft(this string str, double amount, string paddingChar)
         {
             if (string.IsNullOrEmpty(paddingChar))
             {
@@ -37,7 +37,7 @@ namespace ClrScript.Runtime
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string PadRight(string str, double amount, string paddingChar)
+        public static string PadRight(this string str, double amount, string paddingChar)
         {
             if (string.IsNullOrEmpty(paddingChar))
             {
@@ -47,7 +47,7 @@ namespace ClrScript.Runtime
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string Substring(string str, double startIndex)
+        public static string Substring(this string str, double startIndex)
         {
             if (startIndex < 0 || startIndex >= str.Length)
             {
@@ -57,7 +57,7 @@ namespace ClrScript.Runtime
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string Substring(string str, double startIndex, double length)
+        public static string Substring(this string str, double startIndex, double length)
         {
             if (startIndex < 0 || startIndex >= str.Length)
             {
@@ -77,43 +77,43 @@ namespace ClrScript.Runtime
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string ToUpper(string str)
+        public static string ToUpper(this string str)
         {
             return str.ToUpper();
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string ToLower(string str)
+        public static string ToLower(this string str)
         {
             return str.ToLower();
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string Trim(string str)
+        public static string Trim(this string str)
         {
             return str.Trim();
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string TrimStart(string str)
+        public static string TrimStart(this string str)
         {
             return str.TrimStart();
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string TrimEnd(string str)
+        public static string TrimEnd(this string str)
         {
             return str.TrimEnd();
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static double IndexOf(string str, string searchValue)
+        public static double IndexOf(this string str, string searchValue)
         {
             return str.IndexOf(searchValue);
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static double IndexOf(string str, string searchValue, double startIndex)
+        public static double IndexOf(this string str, string searchValue, double startIndex)
         {
             if (startIndex < 0 || startIndex >= str.Length)
             {
@@ -123,37 +123,37 @@ namespace ClrScript.Runtime
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static double LastIndexOf(string str, string searchValue)
+        public static double LastIndexOf(this string str, string searchValue)
         {
             return str.LastIndexOf(searchValue);
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static bool Contains(string str, string searchValue)
+        public static bool Contains(this string str, string searchValue)
         {
             return str.Contains(searchValue);
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static bool StartsWith(string str, string prefix)
+        public static bool StartsWith(this string str, string prefix)
         {
             return str.StartsWith(prefix);
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static bool EndsWith(string str, string suffix)
+        public static bool EndsWith(this string str, string suffix)
         {
             return str.EndsWith(suffix);
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string Replace(string str, string oldValue, string newValue)
+        public static string Replace(this string str, string oldValue, string newValue)
         {
             return str.Replace(oldValue, newValue);
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string Insert(string str, double startIndex, string value)
+        public static string Insert(this string str, double startIndex, string value)
         {
             if (startIndex < 0 || startIndex > str.Length)
             {
@@ -163,7 +163,7 @@ namespace ClrScript.Runtime
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string Remove(string str, double startIndex)
+        public static string Remove(this string str, double startIndex)
         {
             if (startIndex < 0 || startIndex >= str.Length)
             {
@@ -173,7 +173,7 @@ namespace ClrScript.Runtime
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string Remove(string str, double startIndex, double count)
+        public static string Remove(this string str, double startIndex, double count)
         {
             if (startIndex < 0 || startIndex >= str.Length)
             {
@@ -193,37 +193,37 @@ namespace ClrScript.Runtime
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string Concat(string str1, string str2)
+        public static string Concat(this string str1, string str2)
         {
             return string.Concat(str1, str2);
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string Concat(string str1, string str2, string str3)
+        public static string Concat(this string str1, string str2, string str3)
         {
             return string.Concat(str1, str2, str3);
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string Concat(string str1, string str2, string str3, string str4)
+        public static string Concat(this string str1, string str2, string str3, string str4)
         {
             return string.Concat(str1, str2, str3, str4);
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static bool IsEmpty(string str)
+        public static bool IsEmpty(this string str)
         {
             return string.IsNullOrEmpty(str);
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static bool IsEmptyOrWhiteSpace(string str)
+        public static bool IsEmptyOrWhiteSpace(this string str)
         {
             return string.IsNullOrWhiteSpace(str);
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string Repeat(string str, double count)
+        public static string Repeat(this string str, double count)
         {
             if (count <= 0)
             {
@@ -238,7 +238,7 @@ namespace ClrScript.Runtime
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string Reverse(string str)
+        public static string Reverse(this string str)
         {
             if (string.IsNullOrEmpty(str))
             {
@@ -251,7 +251,7 @@ namespace ClrScript.Runtime
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string CharAt(string str, double index)
+        public static string CharAt(this string str, double index)
         {
             if (index < 0 || index >= str.Length)
             {
@@ -262,45 +262,27 @@ namespace ClrScript.Runtime
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static double Compare(string str1, string str2)
+        public static double Compare(this string str1, string str2)
         {
             return string.Compare(str1, str2);
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static double CompareIgnoreCase(string str1, string str2)
+        public static double CompareIgnoreCase(this string str1, string str2)
         {
             return string.Compare(str1, str2, StringComparison.OrdinalIgnoreCase);
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static bool Equals(string str1, string str2)
+        public static bool Equals(this string str1, string str2)
         {
             return string.Equals(str1, str2);
         }
 
         [ClrScriptMember(ConvertToCamelCase = true)]
-        public static bool EqualsIgnoreCase(string str1, string str2)
+        public static bool EqualsIgnoreCase(this string str1, string str2)
         {
             return string.Equals(str1, str2, StringComparison.OrdinalIgnoreCase);
-        }
-
-        [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string Join(string separator, string str1, string str2)
-        {
-            return string.Join(separator, str1, str2);
-        }
-
-        [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string Join(string separator, string str1, string str2, string str3)
-        {
-            return string.Join(separator, str1, str2, str3);
-        }
-
-        [ClrScriptMember(ConvertToCamelCase = true)]
-        public static string Join(string separator, string str1, string str2, string str3, string str4)
-        {
-            return string.Join(separator, str1, str2, str3, str4);
         }
     }
 }

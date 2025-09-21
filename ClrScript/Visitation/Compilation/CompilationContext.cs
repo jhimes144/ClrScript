@@ -23,6 +23,8 @@ namespace ClrScript.Visitation.Compilation
 
         public TypeManager TypeManager { get; }
 
+        public TypeGenerator TypeGenerator { get; }
+
         public SymbolTable SymbolTable { get; }
 
         public ShapeTable ShapeTable { get; }
@@ -47,6 +49,7 @@ namespace ClrScript.Visitation.Compilation
             SymbolTable symbolTable,
             ShapeTable shapeTable,
             TypeManager typeManager,
+            TypeGenerator typeGenerator,
             TypeBuilder rootType,
             Type inType)
         {
@@ -64,10 +67,12 @@ namespace ClrScript.Visitation.Compilation
             ShapeTable = shapeTable;
             SymbolTable = symbolTable;
             TypeManager = typeManager;
+            TypeGenerator = typeGenerator;
             Root = new ClrScriptRoot(this);
             _envs.Push(Root);
             Modules = new List<ClrScriptModule>();
 
+            SymbolTable.BeginRootScope();
             StatementCompiler = new StatementCompiler(this);
             ExpressionCompiler = new ExpressionCompiler(this);
         }

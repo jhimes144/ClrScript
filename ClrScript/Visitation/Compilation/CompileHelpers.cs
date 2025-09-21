@@ -16,7 +16,7 @@ namespace ClrScript.Visitation.Compilation
         {
             var args = methodInfo.GetParameters();
 
-            if (methodInfo.IsStatic)
+            if (Util.IsExtensionMethod(methodInfo))
             {
                 // method is an extension. we already know that the instance object
                 // is of the correct shape, otherwise we wouldn't have a method info to work with.

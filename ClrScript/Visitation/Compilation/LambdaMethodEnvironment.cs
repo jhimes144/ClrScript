@@ -9,9 +9,9 @@ namespace ClrScript.Visitation.Compilation
 {
     class LambdaMethodEnvironment : ClrMethodEnvironment
     {
-        public LambdaMethodEnvironment(DynamicMethod dynMethod, CompilationContext context) : base(context)
+        public LambdaMethodEnvironment(MethodBuilder methodBuilder, CompilationContext context) : base(context)
         {
-            Generator = new ILGeneratorWrapper(dynMethod.GetILGenerator());
+            Generator = new ILGeneratorWrapper(methodBuilder.GetILGenerator());
         }
     }
 }

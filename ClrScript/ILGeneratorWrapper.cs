@@ -316,7 +316,7 @@ namespace ClrScript
             if (memberShapeInfo is UnknownShape || objShapeInfo is UnknownShape)
             {
                 Emit(OpCodes.Ldstr, memberName);
-                Emit(OpCodes.Ldarg_2); // type manager
+                EmitLoadTypeManager();
                 EmitCall(OpCodes.Call, typeof(DynamicOperations)
                         .GetMethod(nameof(DynamicOperations.MemberAccess)), null);
 

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -77,6 +78,14 @@ namespace ClrScript
             }
 
             return result.ToString();
+        }
+
+        public static bool IsExtensionMethod(MethodInfo method)
+        {
+            return method.IsStatic &&
+                   method.IsDefined(typeof(ExtensionAttribute), false) &&
+                   method.GetParameters().Length > 0 &&
+                   method.GetParameters()[0].IsDefined(typeof(ExtensionAttribute), false);
         }
 
         public static Type CreateDelegateType(Type returnType, params Type[] types)

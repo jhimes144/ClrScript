@@ -45,15 +45,18 @@ namespace ClrScript
             var assemblyName = new AssemblyName($"ClrScriptDynamic-{Guid.NewGuid()}");
             var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.RunAndCollect);
             var clrScriptModule = assemblyBuilder.DefineDynamicModule("ClrScriptModule");
+
             var defaultClrScript = clrScriptModule.DefineType("Default", TypeAttributes.Public);
             defaultClrScript.AddInterfaceImplementation(typeof(IClrScriptEntry<TIn>));
 
-            iR.ShapeTable.GenerateRuntimeTypes(clrScriptModule);
+            var generator = iR.ShapeTable.CreateTypeGenerator(defaultClrScript);
+            generator.PreGenerateRuntimeTypes(clrScriptModule);
 
             var compileContext = new CompilationContext(iR.Settings,
                 iR.SymbolTable,
                 iR.ShapeTable,
                 iR.TypeManager,
+                generator,
                 defaultClrScript,
                 iR.InType);
 
