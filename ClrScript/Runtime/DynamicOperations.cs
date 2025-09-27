@@ -27,12 +27,6 @@ namespace ClrScript.Runtime
 
     public static class DynamicOperations
     {
-        [ThreadStatic]
-        public static string _lastMemberAccessName;
-
-        [ThreadStatic]
-        public static Type _lastMemberAccessType;
-
         public static object Add(object left, object right)
         {
             if (left is double leftD && right is double rightD)
@@ -201,9 +195,6 @@ namespace ClrScript.Runtime
 
             var typeInfo = typeManager.GetTypeInfo(type);
 
-            _lastMemberAccessName = memberName;
-            _lastMemberAccessType = type;
-
             if (typeInfo != null)
             {
                 var member = typeInfo.GetMember(memberName);
@@ -269,7 +260,7 @@ namespace ClrScript.Runtime
                 }
             }
 
-            throw new ClrScriptRuntimeException($"'{_lastMemberAccessName}' is not callable on '{_lastMemberAccessType.GetClrScriptTypeDisplay()}'.");
+            throw new ClrScriptRuntimeException($"Cannot invoke '{methodData.GetClrScriptTypeDisplay()}'.");
         }
 
         static void CheckArgs(object[] args, ParameterInfo[] parameters)

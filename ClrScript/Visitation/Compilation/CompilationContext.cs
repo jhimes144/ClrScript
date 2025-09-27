@@ -29,13 +29,11 @@ namespace ClrScript.Visitation.Compilation
 
         public ShapeTable ShapeTable { get; }
 
-        public TypeBuilder RootClrScriptTypeBuilder { get; }
+        public TypeBuilder ClrScriptEntryTypeBuilder { get; }
 
         public ClrScriptRoot Root { get; }
 
         public ClrMethodEnvironment CurrentEnv => _envs.Peek();
-
-        public List<ClrScriptModule> Modules { get; }
 
         public bool ReturnPrepped { get; set; }
 
@@ -62,7 +60,7 @@ namespace ClrScript.Visitation.Compilation
             }
 
             InType = inType;
-            RootClrScriptTypeBuilder = rootType;
+            ClrScriptEntryTypeBuilder = rootType;
 
             ShapeTable = shapeTable;
             SymbolTable = symbolTable;
@@ -70,7 +68,6 @@ namespace ClrScript.Visitation.Compilation
             TypeGenerator = typeGenerator;
             Root = new ClrScriptRoot(this);
             _envs.Push(Root);
-            Modules = new List<ClrScriptModule>();
 
             SymbolTable.BeginRootScope();
             StatementCompiler = new StatementCompiler(this);

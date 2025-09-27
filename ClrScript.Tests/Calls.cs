@@ -1,4 +1,5 @@
-﻿using Moq;
+﻿using ClrScript.Runtime.Builtins;
+using Moq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -221,5 +222,171 @@ public class Calls
         var result = context.Run(testClass.Object);
         Assert.AreEqual(12d, result);
         Assert.AreEqual(true, context.DynamicOperationsEmitted);
+    }
+
+    [TestMethod]
+    public void Call_Null()
+    {
+        var code =
+        @"
+            var calculate = null;
+            return calculate(12, 12);
+        ";
+
+        var context = ClrScriptContext<object>.Compile(code);
+        Assert.ThrowsException<ClrScriptRuntimeException>(() => context.Run());
+        Assert.IsTrue(context.DynamicOperationsEmitted);
+    }
+
+    [TestMethod]
+    public void Lambda_Basic()
+    {
+        var code = @"
+                var calculate = (x, y) -> {
+                    var sum = x + y;
+                    var product = x * y;
+                    return sum + product;
+                };
+                
+                var value = calculate(12, 12);
+                return { value, calculate };
+            ";
+
+        var context = ClrScriptContext<object>.Compile(code);
+        var result = context.Run();
+        Assert.IsFalse(context.DynamicOperationsEmitted);
+        Assert.IsInstanceOfType(result, typeof(ClrScriptObject));
+        var obj = (ClrScriptObject)result;
+
+        Assert.AreEqual(168d, obj.DynGet("value"));
+        Assert.AreEqual(typeof(Func<double, double, double>), obj.DynGet("calculate").GetType());
+    }
+
+    [TestMethod]
+    public void Lambda_Unknown()
+    {
+        var code =
+        @"
+            var calculate;
+
+            if (false)
+            {
+                calculate = ""hello"";
+            }
+            else
+            {
+                calculate = (x, y) -> {
+                    var sum = x + y;
+                    var product = x * y;
+                    return sum + product;
+                };
+            }
+            
+            return calculate(12, 12);
+        ";
+
+        var context = ClrScriptContext<object>.Compile(code);
+        var result = context.Run();
+        Assert.IsTrue(context.DynamicOperationsEmitted);
+        Assert.AreEqual(168d, result);
+    }
+
+    [TestMethod]
+    public void Lambda_Unknown_Args_All()
+    {
+        var code =
+        @"
+            var calculate = (x, y) -> {
+                    return x + y;
+                };
+            
+            var test1 = calculate(12, 12);
+            var test2 = calculate(""hello"", "" world"");
+
+            return { test1, test2, calculate };
+        ";
+
+        var context = ClrScriptContext<object>.Compile(code);
+        var result = context.Run();
+
+        Assert.IsInstanceOfType(result, typeof(ClrScriptObject));
+        var obj = (ClrScriptObject)result;
+
+        Assert.IsInstanceOfType(obj.DynGet("calculate"), typeof(Func<object, object, object>));
+        Assert.AreEqual(24d, obj.DynGet("test1"));
+        Assert.AreEqual("hello world", obj.DynGet("test2"));
+
+        Assert.IsTrue(context.DynamicOperationsEmitted);
+    }
+
+    [TestMethod]
+    public void Lambda_Dyn_Stowaway()
+    {
+        var code =
+        @"
+             var calculate = (x, y) -> {
+                     return x + y;
+                 };
+             
+             var test1 = calculate(12, 12);
+             var calcDyn;
+
+             if (true)
+             {
+                 calcDyn = calculate;
+             }
+             else
+             {
+                 calcDyn = 12;
+             }
+
+             return calcDyn(""hello"", "" world""); 
+        ";
+
+        var context = ClrScriptContext<object>.Compile(code);
+        var result = context.Run();
+
+        Assert.AreEqual("hello world", result);
+        Assert.IsTrue(context.DynamicOperationsEmitted);
+    }
+
+    [TestMethod]
+    public void Lambda_Unknown_Args_Binary_Mid_Point()
+    {
+        var code =
+            @"
+                var calculate = (x, y) -> {
+                    return x + y;
+                };
+
+                var test1 = calculate(1, 1);
+                var test2 = calculate(1, 1);
+                var sumTest = test1 + test2;
+                var sumSumTest = sumTest + 1;
+                
+                var test3 = calculate(""hello"", "" world"");
+
+                return { test1, test2, sumSumTest, test3, calculate };
+            ";
+
+        var context = ClrScriptContext<object>.Compile(code);
+        var result = context.Run();
+
+        Assert.IsInstanceOfType(result, typeof(ClrScriptObject));
+        var obj = (ClrScriptObject)result;
+
+        Assert.IsInstanceOfType(obj.DynGet("calculate"), typeof(Func<object, object, object>));
+        Assert.AreEqual(2d, obj.DynGet("test1"));
+        Assert.AreEqual(2d, obj.DynGet("test2"));
+        Assert.AreEqual(5d, obj.DynGet("sumSumTest"));
+        Assert.AreEqual("hello world", obj.DynGet("test3"));
+
+        Assert.IsTrue(context.DynamicOperationsEmitted);
+    }
+
+    [TestMethod]
+    public void Lambda_Basic_Var_Capture()
+    {
+
     }
 }

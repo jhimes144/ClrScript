@@ -1,5 +1,6 @@
 ﻿using ClrScript.Elements;
 using ClrScript.Elements.Expressions;
+using ClrScript.Elements.Statements;
 using ClrScript.Runtime.Builtins;
 using ClrScript.Visitation.Analysis;
 using System;
@@ -89,7 +90,7 @@ namespace ClrScript.Visitation.Analysis
             return DeriveShape(GetShape(element1), GetShape(element2));
         }
 
-        public ShapeInfo DeriveShape(ShapeInfo masterShape, ShapeInfo sourceShape)
+        public ShapeInfo DeriveShape(ShapeInfo masterShape, ShapeInfo sourceShape, bool noDynDerive = false)
         {
             if (sourceShape == null)
             {
@@ -119,10 +120,29 @@ namespace ClrScript.Visitation.Analysis
                 return UnknownShape.Instance;
             }
 
+            if (masterShape is MethodReturnShape mR1
+                && sourceShape is MethodReturnShape mR2)
+            {
+                if (!noDynDerive)
+                {
+                    return new DynDeriveShape(this, mR1, mR2);
+                }
+                else
+                {
+                    return DeriveShape(mR1.PointsTo, mR2.PointsTo, noDynDerive);
+                }
+            }
+
+            if (masterShape is DynDeriveShape dD1
+                && sourceShape is DynDeriveShape dD2)
+            {
+                return DeriveShape(dD1.MasterShape, dD2.SourceShape, noDynDerive);
+            }
+
             if (masterShape is ClrScriptArrayShape a1
                 && sourceShape is ClrScriptArrayShape a2)
             {
-                var derivedContentShape = DeriveShape(a1.ContentShape, a2.ContentShape);
+                var derivedContentShape = DeriveShape(a1.ContentShape, a2.ContentShape, noDynDerive);
                 return new ClrScriptArrayShape(derivedContentShape);
             }
 
@@ -138,7 +158,7 @@ namespace ClrScript.Visitation.Analysis
                 {
                     if (o2.ShapeInfoByPropName.TryGetValue(prop, out var otherPropShape))
                     {
-                        o1.SetShapeInfoForProp(prop, DeriveShape(propShape, otherPropShape));
+                        o1.SetShapeInfoForProp(prop, DeriveShape(propShape, otherPropShape, noDynDerive));
                         intersectingPropNames.Add(prop);
                     }
                 }
@@ -153,6 +173,16 @@ namespace ClrScript.Visitation.Analysis
 
                 o2.ParentShape = o1;
                 return masterShape;
+            }
+
+            // special case -> Test -> Calls.Lambda_Dyn_Stowaway
+            if (masterShape is MethodShape stowawayMethod)
+            {
+                // if were here, its because a method is being
+                // sent down a dynamic code path.
+                // we cannot perform any optimizations on this method
+
+                stowawayMethod.IsStowaway = true;
             }
 
             return UnknownShape.Instance;
@@ -267,7 +297,7 @@ namespace ClrScript.Visitation.Analysis
 
     class MethodShape : ShapeInfo
     {
-        public override Type InferredType => CallSignature?.GenDelegateType;
+        public override Type InferredType => CallSignature?.DelegateType;
 
         /// <summary>
         /// Indicates method is not a lambda
@@ -276,6 +306,8 @@ namespace ClrScript.Visitation.Analysis
 
         public MethodCallSignature CallSignature { get; set; }
 
+        public bool IsStowaway { get; set; }
+
         // we can be sure the declaration belongs to this shape, because if a variable or member
         // changes, than the the method shape is discarded
         public Lambda Declaration { get; }
@@ -283,12 +315,45 @@ namespace ClrScript.Visitation.Analysis
         public MethodShape(ShapeInfo @return, List<ShapeInfo> arguments)
         {
             IsTypeMethod = true;
-            CallSignature = new MethodCallSignature(null, @return, arguments);
+            CallSignature = new MethodCallSignature(null, @return, arguments, Array.Empty<VarStmt>());
         }
 
         public MethodShape(Lambda declaration)
         {
             Declaration = declaration;
+        }
+    }
+
+    class MethodReturnShape : ShapeInfo
+    {
+        MethodShape _parent;
+
+        public override Type InferredType => _parent.CallSignature?.Return?.InferredType 
+            ?? UnknownShape.Instance.InferredType;
+
+        public ShapeInfo PointsTo => _parent.CallSignature?.Return;
+
+        public MethodReturnShape(MethodShape parent)
+        {
+            _parent = parent;
+        }
+    }
+
+    class DynDeriveShape : ShapeInfo
+    {
+        readonly ShapeTable _table;
+
+        public override Type InferredType => _table.DeriveShape(MasterShape, SourceShape, true).InferredType;
+
+        public ShapeInfo MasterShape { get; }
+
+        public ShapeInfo SourceShape { get; }
+
+        public DynDeriveShape(ShapeTable table, ShapeInfo masterShape, ShapeInfo sourceShape)
+        {
+            _table = table;
+            MasterShape = masterShape;
+            SourceShape = sourceShape;
         }
     }
 
@@ -300,20 +365,24 @@ namespace ClrScript.Visitation.Analysis
 
         public IReadOnlyDictionary<Element, ShapeInfo> ShapesByElement { get; }
 
+        public IReadOnlyList<VarStmt> VariableCaptures { get; }
+
         public MethodBuilder GenMethodBuilder { get; set; }
 
-        public Type GenDelegateType { get; set; }
+        public Type DelegateType => Util.CreateDelegateType(Return.InferredType, 
+            Arguments.Select(a => a.InferredType).ToArray());
 
         public FieldInfo LambdaCacheField { get; set; }
 
         public TypeBuilder MethodContainerType { get; set; }
 
         public MethodCallSignature(IReadOnlyDictionary<Element, ShapeInfo> shapes, 
-            ShapeInfo @return, IReadOnlyList<ShapeInfo> arguments)
+            ShapeInfo @return, IReadOnlyList<ShapeInfo> arguments, IReadOnlyList<VarStmt> variableCaptures)
         {
             ShapesByElement = shapes;
             Return = @return;
             Arguments = arguments;
+            VariableCaptures = variableCaptures ?? new List<VarStmt>();
         }
     }
 

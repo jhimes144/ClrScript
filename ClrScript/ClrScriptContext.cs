@@ -13,12 +13,13 @@ using ClrScript.Interop;
 using ClrScript.Visitation;
 using Microsoft.VisualBasic;
 using ClrScript.TypeManagement;
+using ClrScript.Runtime;
 
 namespace ClrScript
 {
     public interface IClrScriptEntry<TIn>
     {
-        object Main(TIn input, TypeManager typeManager);
+        object Main(TIn input);
     }
 
     public class ClrScriptContext<TIn> where TIn : class
@@ -37,7 +38,7 @@ namespace ClrScript
 
             DynamicOperationsEmitted = compilation.DynamicOperationsEmitted;
             _typeManager = compilation.TypeManager;
-            _entry = (IClrScriptEntry<TIn>)Activator.CreateInstance(compilation.BuiltRootType);
+            _entry = (IClrScriptEntry<TIn>)Activator.CreateInstance(compilation.BuiltRootType, _typeManager);
         }
 
         public static ClrScriptContext<TIn> Compile(string source, ClrScriptCompilationSettings settings = null)
@@ -54,7 +55,7 @@ namespace ClrScript
 
         public object Run(TIn input)
         {
-            return _entry.Main(input, _typeManager);
+            return _entry.Main(input);
         }
     }
 }

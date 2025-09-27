@@ -117,7 +117,7 @@ namespace ClrScript.Tests
 
             var context = ClrScriptContext<object>.Compile(code);
             var result = context.Run();
-            Assert.AreEqual(15.0, result); // 1 + 2 + 3 + 4 + 5 = 15
+            Assert.AreEqual(15d, result);
         }
 
         [TestMethod]
@@ -156,7 +156,7 @@ namespace ClrScript.Tests
 
             var context = ClrScriptContext<object>.Compile(code);
             var result = context.Run();
-            Assert.AreEqual(70d, result); // Length of both strings
+            Assert.AreEqual(70d, result);
             Assert.IsFalse(context.DynamicOperationsEmitted);
         }
 

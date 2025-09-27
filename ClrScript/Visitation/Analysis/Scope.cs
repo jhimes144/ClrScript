@@ -43,6 +43,11 @@ namespace ClrScript.Visitation.Analysis
             _symbolsByName[name] = symbol;
         }
 
+        public void ClearSymbols()
+        {
+            _symbolsByName.Clear();
+        }
+
         public Symbol FindLocalSymbol(string name)
         {
             return _symbolsByName.GetValueOrDefault(name);

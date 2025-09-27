@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,6 +15,11 @@ namespace ClrScript.Visitation.Compilation
 
         readonly Dictionary<string, LocalBuilder> _localsByName 
             = new Dictionary<string, LocalBuilder>();
+
+        public abstract FieldInfo InField { get; protected set; }
+        public abstract FieldInfo TypeManagerField { get; protected set; }
+
+        public IReadOnlyDictionary<string, LocalBuilder> LocalsByName => _localsByName;
 
         public ClrMethodEnvironment(CompilationContext context)
         {

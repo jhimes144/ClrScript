@@ -57,6 +57,49 @@ namespace ClrScript.Visitation.Analysis
         {
             CurrentScope = CurrentScope.Parent;
         }
+
+        public void DestroyChildren(Scope targetScope)
+        {
+            var elementsToRemove = new List<Element>();
+
+            foreach (var kvp in _scopesByElement)
+            {
+                var element = kvp.Key;
+                var scope = kvp.Value;
+
+                if (IsDescendantOf(scope, targetScope))
+                {
+                    elementsToRemove.Add(element);
+                }
+            }
+
+            foreach (var element in elementsToRemove)
+            {
+                _scopesByElement.Remove(element);
+            }
+        }
+
+        private bool IsDescendantOf(Scope scope, Scope targetScope)
+        {
+            if (scope == null || targetScope == null)
+            {
+                return false;
+            }
+
+            var current = scope.Parent;
+
+            while (current != null)
+            {
+                if (current == targetScope)
+                {
+                    return true;
+                }
+
+                current = current.Parent;
+            }
+
+            return false;
+        }
     }
 
     abstract class Symbol

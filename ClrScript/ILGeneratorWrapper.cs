@@ -316,7 +316,7 @@ namespace ClrScript
             if (memberShapeInfo is UnknownShape || objShapeInfo is UnknownShape)
             {
                 Emit(OpCodes.Ldstr, memberName);
-                EmitLoadTypeManager();
+                EmitLoadTypeManager(context);
                 EmitCall(OpCodes.Call, typeof(DynamicOperations)
                         .GetMethod(nameof(DynamicOperations.MemberAccess)), null);
 
@@ -351,21 +351,22 @@ namespace ClrScript
             }
 
             Emit(OpCodes.Ldstr, memberName);
-            EmitLoadTypeManager(); // type manager
+            EmitLoadTypeManager(context);
             EmitCall(OpCodes.Call, typeof(DynamicOperations)
                 .GetMethod(nameof(DynamicOperations.MemberAccess)), null);
 
             context.DynamicOperationsEmitted = true;
         }
 
-        public void EmitLoadTypeManager()
-        {
-            Emit(OpCodes.Ldarg_2);
-        }
-
         public void EmitValueTypeToNullable(Type type)
         {
 
+        }
+
+        public void EmitLoadTypeManager(CompilationContext context)
+        {
+            Emit(OpCodes.Ldarg_0);
+            Emit(OpCodes.Ldfld, context.CurrentEnv.TypeManagerField);
         }
 
         public void EmitAssign(MemberRootAccess rootAccess, Action emitValue, ShapeInfo valueShape, CompilationContext context)

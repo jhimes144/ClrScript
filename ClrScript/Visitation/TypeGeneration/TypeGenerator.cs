@@ -20,10 +20,14 @@ namespace ClrScript.Visitation.Analysis
         readonly HashSet<ClrScriptObjectShape> _registeredObjectShapes
             = new HashSet<ClrScriptObjectShape>();
 
+        readonly Dictionary<ClrScriptObjectShape, TypeBuilder> _typeBuildersByShape 
+            = new Dictionary<ClrScriptObjectShape, TypeBuilder>();
+
         public TypeShape InTypeShape { get; }
 
         public TypeBuilder LambdaCapturelessContainerType { get; private set; }
 
+        bool _typesGenerated;
         int _lambdaId;
         TypeBuilder _clrScriptGenType;
 
@@ -38,10 +42,38 @@ namespace ClrScript.Visitation.Analysis
             _clrScriptGenType = clrScriptGenType;
         }
 
-        public void PreGenerateRuntimeTypes(ModuleBuilder moduleBuilder)
+        public void GenerateRuntimeTypes(ModuleBuilder moduleBuilder)
         {
+            if (_typesGenerated)
+            {
+                throw new Exception("Types already generated.");
+            }
+
+            generateTypeBuilders(moduleBuilder);
             generateObjTypes(moduleBuilder);
             generateLambdas(moduleBuilder);
+
+            _typesGenerated = true;
+        }
+
+        void generateTypeBuilders(ModuleBuilder moduleBuilder)
+        {
+            var masterObjectShapes = new HashSet<ClrScriptObjectShape>();
+
+            foreach (var shape in _registeredObjectShapes)
+            {
+                masterObjectShapes.Add(shape.GetMasterShape());
+            }
+
+            foreach (var objShape in masterObjectShapes)
+            {
+                var typeBuilder = moduleBuilder.DefineType
+                    ($"<ClrScript_Obj_Gen>_{Guid.NewGuid().ToString().Replace('-', '_')}",
+                    TypeAttributes.Public,
+                    typeof(ClrScriptObject));
+
+                _typeBuildersByShape[objShape] = typeBuilder;
+            }
         }
 
         void generateLambdas(ModuleBuilder moduleBuilder)
@@ -60,35 +92,19 @@ namespace ClrScript.Visitation.Analysis
 
                     createLambdas(sig.ShapesByElement);
 
-                    //var methodArgTypes = new List<Type>
-                    //    {
-                    //        InTypeShape.InferredType
-                    //    };
-
-                    var methodArgTypes = new List<Type>();
-                    methodArgTypes.AddRange(sig.Arguments.Select(a => a.InferredType));
-                    var methodArgTypesA = methodArgTypes.ToArray();
-
-                    var containerType = moduleBuilder.DefineType($"<ClrScript_Lambda_Captureless_{_lambdaId}>",
-                            TypeAttributes.Public);
-
-                    // TODO: need to pass type manager
                     // TODO: have path for capturing variables
-                    var methodBuilder = containerType.DefineMethod(
+                    var methodBuilder = _clrScriptGenType.DefineMethod(
                         $"<Lambda_Gen>_{_lambdaId}",
                         MethodAttributes.Public | MethodAttributes.Static | MethodAttributes.HideBySig,
                         sig.Return.InferredType,
-                        methodArgTypesA
+                        sig.Arguments.Select(a => a.InferredType).ToArray()
                     );
 
-                    var delType = Util.CreateDelegateType(sig.Return.InferredType, methodArgTypesA);
-                    var cacheField = containerType.DefineField($"<Lambda_Gen_Cache>_{_lambdaId}", delType,
+                    var cacheField = _clrScriptGenType.DefineField($"<Lambda_Gen_Cache>_{_lambdaId}", sig.DelegateType,
                         FieldAttributes.Static | FieldAttributes.Public);
 
                     sig.GenMethodBuilder = methodBuilder;
                     sig.LambdaCacheField = cacheField;
-                    sig.GenDelegateType = delType;
-                    sig.MethodContainerType = containerType;
 
                     _lambdaId++;
                 }
@@ -99,29 +115,11 @@ namespace ClrScript.Visitation.Analysis
 
         void generateObjTypes(ModuleBuilder moduleBuilder)
         {
-            var typeBuildersByShape = new Dictionary<ClrScriptObjectShape, TypeBuilder>();
-            var masterObjectShapes = new HashSet<ClrScriptObjectShape>();
-
-            foreach (var shape in _registeredObjectShapes)
-            {
-                masterObjectShapes.Add(shape.GetMasterShape());
-            }
-
-            foreach (var objShape in masterObjectShapes)
-            {
-                var typeBuilder = moduleBuilder.DefineType
-                    ($"<ClrScript_Obj_Gen>_{Guid.NewGuid().ToString().Replace('-', '_')}",
-                    TypeAttributes.Public,
-                    typeof(ClrScriptObject));
-
-                typeBuildersByShape[objShape] = typeBuilder;
-            }
-
             Type getTypeForShape(ShapeInfo shapeInfo)
             {
                 if (shapeInfo is ClrScriptObjectShape objShape)
                 {
-                    return typeBuildersByShape[objShape];
+                    return _typeBuildersByShape[objShape];
                 }
                 else if (shapeInfo is ClrScriptArrayShape objArrayShape)
                 {
@@ -134,7 +132,7 @@ namespace ClrScript.Visitation.Analysis
                 }
             }
 
-            foreach (var (shape, builder) in typeBuildersByShape)
+            foreach (var (shape, builder) in _typeBuildersByShape)
             {
                 foreach (var (prop, propShape) in shape.ShapeInfoByPropName)
                 {
@@ -153,7 +151,7 @@ namespace ClrScript.Visitation.Analysis
 
             var objConstructor = typeof(ClrScriptObject).GetConstructor(Type.EmptyTypes);
 
-            foreach (var (shape, builder) in typeBuildersByShape)
+            foreach (var (shape, builder) in _typeBuildersByShape)
             {
                 if (shape.ShapeInfoByPropName.Count > 0)
                 {

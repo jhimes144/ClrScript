@@ -25,9 +25,7 @@ namespace ClrScript.Visitation.Analysis
             = new LambdaAnalysisRecursionDetector();
 
         readonly List<Lambda> _visitedLambdas = new List<Lambda>();
-
-        IReadOnlyList<ShapeInfo> _curLambdaArgShapes;
-        ShapeInfo _curLambdaReturnShape = UndeterminedShape.Instance;
+        readonly Stack<LambdaTracking> _lambdaTrackingStack = new Stack<LambdaTracking>();
 
         public AnalyzerVisitor(SymbolTable symbolTable,
             TypeManager typeManager,
@@ -49,8 +47,9 @@ namespace ClrScript.Visitation.Analysis
             {
                 var methodShape = (MethodShape)_shapeTable.GetShape(lambda);
 
-                if (methodShape.CallSignature == null)
+                if (methodShape.CallSignature == null || methodShape.IsStowaway)
                 {
+                    methodShape.CallSignature = null;
                     insureLambdaCallSignature(methodShape, lambda.Parameters.Select(_ => UnknownShape.Instance).ToArray());
                 }
             }
@@ -218,8 +217,7 @@ namespace ClrScript.Visitation.Analysis
                     _shapeTable.GetShape(call.Arguments[0]));
             }
 
-            // special case: lambdas
-            if (calleeShape is MethodShape methodShape && !methodShape.IsTypeMethod)
+            if (calleeShape is MethodShape methodShape)
             {
                 var argShapes = new List<ShapeInfo>();
 
@@ -228,15 +226,18 @@ namespace ClrScript.Visitation.Analysis
                     argShapes.Add(_shapeTable.GetShape(arg));
                 }
 
-                if (!insureLambdaCallSignature(methodShape, argShapes))
+                if (!methodShape.IsTypeMethod)
                 {
-                    // we are in recursion or arg count mismatch. override callee to unknown shape
-                    //_shapeTable.SetShape(call.Callee, UnknownShape.Instance, true);
-                    //_shapeTable.SetShape(call, calleeShape);
-                    return;
+                    if (!insureLambdaCallSignature(methodShape, argShapes))
+                    {
+                        // we are in recursion or arg count mismatch. override callee to unknown shape
+                        //_shapeTable.SetShape(call.Callee, UnknownShape.Instance, true);
+                        //_shapeTable.SetShape(call, calleeShape);
+                        return;
+                    }
                 }
 
-                _shapeTable.SetShape(call, methodShape.CallSignature?.Return ?? UnknownShape.Instance);
+                _shapeTable.SetShape(call, new MethodReturnShape(methodShape));
             }
             else
             {
@@ -246,12 +247,6 @@ namespace ClrScript.Visitation.Analysis
 
         bool insureLambdaCallSignature(MethodShape methodShape, IReadOnlyList<ShapeInfo> argShapes)
         {
-            // check if we are entering recursion
-            if (_recursionDetector.Enter(methodShape.Declaration))
-            {
-                return false;
-            }
-
             if (argShapes.Count != methodShape.Declaration.Parameters.Count)
             {
                 return false;
@@ -277,7 +272,9 @@ namespace ClrScript.Visitation.Analysis
                 }
             }
 
-            _symbolTable.DeclareScope(methodShape.Declaration, ScopeKind.Lambda);
+            _symbolTable.BeginScope(methodShape.Declaration);
+            _symbolTable.CurrentScope.ClearSymbols();
+            _symbolTable.DestroyChildren(_symbolTable.CurrentScope);
 
             var index = 0;
 
@@ -300,7 +297,14 @@ namespace ClrScript.Visitation.Analysis
                 index++;
             }
 
-            _curLambdaArgShapes = toUseArgShapes;
+            // check if we are entering recursion
+            if (_recursionDetector.Enter(methodShape.Declaration))
+            {
+                return false;
+            }
+
+            var lambdaTrack = new LambdaTracking(toUseArgShapes);
+            _lambdaTrackingStack.Push(lambdaTrack);
             _shapeTable.EnterShapeScope();
 
             methodShape.Declaration.Body.Accept(this);
@@ -308,13 +312,14 @@ namespace ClrScript.Visitation.Analysis
             var shapes = _shapeTable.EndShapeScope();
             _symbolTable.EndScope();
 
-            Debug.Assert(!(_curLambdaReturnShape is UndeterminedShape));
+            _lambdaTrackingStack.Pop();
 
-            methodShape.CallSignature = new MethodCallSignature(shapes, _curLambdaReturnShape, toUseArgShapes);
+            Debug.Assert(!(lambdaTrack.ReturnShape is UndeterminedShape));
+
+            methodShape.CallSignature = new MethodCallSignature(shapes, lambdaTrack.ReturnShape,
+                toUseArgShapes, lambdaTrack.CapturedVariables);
 
             _recursionDetector.RollbackTo(methodShape.Declaration);
-            _curLambdaArgShapes = null;
-            _curLambdaReturnShape = UndeterminedShape.Instance;
 
             return true;
         }
@@ -377,6 +382,10 @@ namespace ClrScript.Visitation.Analysis
             _visitedLambdas.Add(lambda);
             var methodShape = new MethodShape(lambda);
             _shapeTable.SetShape(lambda, methodShape);
+
+            // create an empty scope for now, will be used when we visit the lambda call
+            _symbolTable.DeclareScope(lambda, ScopeKind.Lambda);
+            _symbolTable.EndScope();
         }
 
         public void VisitLiteral(Literal expr)
@@ -453,8 +462,7 @@ namespace ClrScript.Visitation.Analysis
                 else if (existingSymbol is LambdaParamSymbol paramSym)
                 {
                     var lambda = (Lambda)paramSym.Element;
-                    var lambdaShape = (MethodShape)_shapeTable.GetShape(lambda);
-                    var paramShape = _curLambdaArgShapes[paramSym.ParamIndex];
+                    var paramShape = _lambdaTrackingStack.Peek().ArgShapes[paramSym.ParamIndex];
                     member.AccessType = RootMemberAccessType.LambdaArg;
                     member.ParamIndex = paramSym.ParamIndex;
 
@@ -539,14 +547,12 @@ namespace ClrScript.Visitation.Analysis
         {
             returnStmt.Expression.Accept(this);
 
-            var cScope = _symbolTable.CurrentScope;
-            var isLambda = cScope.Kind == ScopeKind.Lambda || 
-                (cScope.Kind == ScopeKind.Block && cScope.Parent?.Kind == ScopeKind.Lambda);
-
-            if (isLambda)
+            if (_lambdaTrackingStack.Count > 0)
             {
                 var returnShape = _shapeTable.GetShape(returnStmt.Expression);
-                _curLambdaReturnShape = _shapeTable.DeriveShape(_curLambdaReturnShape, returnShape);
+                var lambdaTrack = _lambdaTrackingStack.Peek();
+
+                lambdaTrack.ReturnShape = _shapeTable.DeriveShape(lambdaTrack.ReturnShape, returnShape);
             }
         }
 
@@ -667,6 +673,20 @@ namespace ClrScript.Visitation.Analysis
             }
 
             return UnknownShape.Instance;
+        }
+
+        class LambdaTracking
+        {
+            public IReadOnlyList<ShapeInfo> ArgShapes { get; }
+
+            public ShapeInfo ReturnShape { get; set; } = UndeterminedShape.Instance;
+
+            public List<VarStmt> CapturedVariables { get; } = new List<VarStmt>();
+
+            public LambdaTracking(IReadOnlyList<ShapeInfo> argShapes)
+            {
+                ArgShapes = argShapes;
+            }
         }
     }
 }

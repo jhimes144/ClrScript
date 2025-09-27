@@ -84,8 +84,7 @@ namespace ClrScript
         {
             return method.IsStatic &&
                    method.IsDefined(typeof(ExtensionAttribute), false) &&
-                   method.GetParameters().Length > 0 &&
-                   method.GetParameters()[0].IsDefined(typeof(ExtensionAttribute), false);
+                   method.GetParameters().Length > 0;
         }
 
         public static Type CreateDelegateType(Type returnType, params Type[] types)

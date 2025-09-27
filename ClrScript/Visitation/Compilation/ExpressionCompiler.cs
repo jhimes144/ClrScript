@@ -196,7 +196,7 @@ namespace ClrScript.Visitation.Compilation
             var methodShape = (MethodShape)_context.ShapeTable.GetShape(lambda);
             var sig = methodShape.CallSignature;
 
-            var env = new LambdaMethodEnvironment(sig.GenMethodBuilder, _context);
+            var env = new LambdaCapturelessMethodEnvironment(sig.GenMethodBuilder, _context);
 
             _context.SymbolTable.BeginScope(lambda);
             _context.EnterEnvironment(env);
@@ -206,18 +206,10 @@ namespace ClrScript.Visitation.Compilation
             _context.ShapeTable.EndShapeScope();
             _context.SymbolTable.EndScope();
 
-            var type = sig.MethodContainerType.CreateType();
-            var method = type.GetMethod(sig.GenMethodBuilder.Name);
-
-            //_context.CurrentEnv.Generator.Emit(OpCodes.Ldc_R8, 12d);
-            //_context.CurrentEnv.Generator.Emit(OpCodes.Ldc_R8, 12d);
-            //_context.CurrentEnv.Generator.Emit(OpCodes.Call, method);
-            //_context.CurrentEnv.Generator.Emit(OpCodes.Pop);
-
             _context.CurrentEnv.Generator.Emit(OpCodes.Ldnull);
-            _context.CurrentEnv.Generator.Emit(OpCodes.Ldftn, method);
+            _context.CurrentEnv.Generator.Emit(OpCodes.Ldftn, sig.GenMethodBuilder);
 
-            var delConstructor = sig.GenDelegateType.GetConstructors()[0];
+            var delConstructor = sig.DelegateType.GetConstructors()[0];
             _context.CurrentEnv.Generator.Emit(OpCodes.Newobj, delConstructor);
         }
 
@@ -290,8 +282,8 @@ namespace ClrScript.Visitation.Compilation
             }
             else if (var.AccessType == RootMemberAccessType.External)
             {
-                // TODO: Not arg 1 in lambdas
-                _context.CurrentEnv.Generator.Emit(OpCodes.Ldarg_1);
+                _context.CurrentEnv.Generator.Emit(OpCodes.Ldarg_0);
+                _context.CurrentEnv.Generator.Emit(OpCodes.Ldfld, _context.Root.InField);
                 _context.CurrentEnv.Generator.EmitMemberAccess(_context.ShapeTable.InTypeShape,
                     var.Name.Value, _context.ShapeTable.GetShape(var), _context);
             }
@@ -309,12 +301,12 @@ namespace ClrScript.Visitation.Compilation
 
         public void VisitMemberAccess(MemberAccess memberAccess)
         {
-            memberAccess.Expr.Accept(this);
             var generator = _context.CurrentEnv.Generator;
 
             var memberShapeInfo = _context.ShapeTable.GetShape(memberAccess);
             var objShapeInfo = _context.ShapeTable.GetShape(memberAccess.Expr);
 
+            memberAccess.Expr.Accept(this);
             generator.EmitMemberAccess(objShapeInfo, memberAccess.Name.Value, memberShapeInfo, _context);
         }
 
@@ -416,9 +408,6 @@ namespace ClrScript.Visitation.Compilation
         public void VisitIndexer(Indexer indexer)
         {
             var gen = _context.CurrentEnv.Generator;
-            indexer.Callee.Accept(this);
-            indexer.Expression.Accept(this);
-
             var calleeShape = _context.ShapeTable.GetShape(indexer.Callee);
 
             if (calleeShape is ClrScriptArrayShape || calleeShape is TypeShape)
@@ -427,13 +416,20 @@ namespace ClrScript.Visitation.Compilation
                     .GetTypeInfo(calleeShape.InferredType)
                     .GetIndexer();
 
+                indexer.Callee.Accept(this);
+                indexer.Expression.Accept(this);
+
                 gen.EmitCall(OpCodes.Callvirt, indexerProp.GetMethod, null);
             }
             else
             {
                 _context.DynamicOperationsEmitted = true;
-                gen.EmitLoadTypeManager();
-                gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
+
+                indexer.Callee.Accept(this);
+                indexer.Expression.Accept(this);
+
+                gen.EmitLoadTypeManager(_context);
+                gen.EmitCall(OpCodes.Callvirt, typeof(DynamicOperations)
                             .GetMethod(nameof(DynamicOperations.Indexer)), null);
             }
         }
@@ -494,7 +490,8 @@ namespace ClrScript.Visitation.Compilation
                             .GetMemberName(methodInfo.Name);
 
                         gen.Emit(OpCodes.Ldstr, methodName);
-                        gen.Emit(OpCodes.Ldarg_2); // type manager
+
+                        gen.EmitLoadTypeManager(_context);
                         _context.DynamicOperationsEmitted = true;
                         gen.EmitCall(OpCodes.Call, typeof(DynamicOperations)
                             .GetMethod(nameof(DynamicOperations.CreateDynCallInfo)), null);
@@ -503,9 +500,9 @@ namespace ClrScript.Visitation.Compilation
                 }
                 else
                 {
-                    if (CompileHelpers.GetCanBeOptimized(methodShape.CallSignature.GenDelegateType, call, _context.ShapeTable))
+                    if (CompileHelpers.GetCanBeOptimized(methodShape.CallSignature.DelegateType, call, _context.ShapeTable))
                     {
-                        var invokeMethod = methodShape.CallSignature.GenDelegateType.GetMethod("Invoke");
+                        var invokeMethod = methodShape.CallSignature.DelegateType.GetMethod("Invoke");
                         var methodArgs = invokeMethod.GetParameters();
 
                         for (var i = 0; i < methodArgs.Length; i++)

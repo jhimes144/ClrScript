@@ -46,18 +46,18 @@ namespace ClrScript
             var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.RunAndCollect);
             var clrScriptModule = assemblyBuilder.DefineDynamicModule("ClrScriptModule");
 
-            var defaultClrScript = clrScriptModule.DefineType("Default", TypeAttributes.Public);
-            defaultClrScript.AddInterfaceImplementation(typeof(IClrScriptEntry<TIn>));
+            var clrScriptEntry = clrScriptModule.DefineType("Entry", TypeAttributes.Public);
+            clrScriptEntry.AddInterfaceImplementation(typeof(IClrScriptEntry<TIn>));
 
-            var generator = iR.ShapeTable.CreateTypeGenerator(defaultClrScript);
-            generator.PreGenerateRuntimeTypes(clrScriptModule);
+            var generator = iR.ShapeTable.CreateTypeGenerator(clrScriptEntry);
+            generator.GenerateRuntimeTypes(clrScriptModule);
 
             var compileContext = new CompilationContext(iR.Settings,
                 iR.SymbolTable,
                 iR.ShapeTable,
                 iR.TypeManager,
                 generator,
-                defaultClrScript,
+                clrScriptEntry,
                 iR.InType);
 
             foreach (var statement in iR.Statements)
@@ -73,7 +73,7 @@ namespace ClrScript
                 compileContext.CurrentEnv.Generator.Emit(OpCodes.Ret);
             }
 
-            var clrType = defaultClrScript.CreateType();
+            var clrType = clrScriptEntry.CreateType();
             return new ClrScriptCompilation<TIn>(clrType, iR.TypeManager, compileContext.DynamicOperationsEmitted);
         }
     }
