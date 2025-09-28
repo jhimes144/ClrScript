@@ -71,5 +71,30 @@ namespace ClrScript.Visitation.Analysis
             foundScope = null;
             return null;
         }
+
+        public Symbol FindSymbolGoingUp(string name, out Scope foundScope, out int lambdasPassed)
+        {
+            var scope = this;
+            lambdasPassed = 0;
+
+            do
+            {
+                if (scope._symbolsByName.TryGetValue(name, out var symbol))
+                {
+                    foundScope = scope;
+                    return symbol;
+                }
+
+                if (scope.Kind == ScopeKind.Lambda)
+                {
+                    lambdasPassed++;
+                }
+
+                scope = scope.Parent;
+            } while (scope != null);
+
+            foundScope = null;
+            return null;
+        }
     }
 }

@@ -245,7 +245,7 @@ namespace ClrScript
                 case 0:
                     Emit(OpCodes.Ldarg_0);
                     break;
-                case 1: 
+                case 1:
                     Emit(OpCodes.Ldarg_1);
                     break;
                 case 2:
@@ -255,7 +255,14 @@ namespace ClrScript
                     Emit(OpCodes.Ldarg_3);
                     break;
                 default:
-                    Emit(OpCodes.Ldarg, index);
+                    if (index <= 255)
+                    {
+                        Emit(OpCodes.Ldarg_S, (byte)index);
+                    }
+                    else
+                    {
+                        Emit(OpCodes.Ldarg, index);
+                    }
                     break;
             }
         }
@@ -313,7 +320,7 @@ namespace ClrScript
         public void EmitMemberAccess(ShapeInfo objShapeInfo, string memberName, ShapeInfo memberShapeInfo,
             CompilationContext context)
         {
-            if (memberShapeInfo is UnknownShape || objShapeInfo is UnknownShape)
+            if (memberShapeInfo is OldUnknownShape || objShapeInfo is OldUnknownShape)
             {
                 Emit(OpCodes.Ldstr, memberName);
                 EmitLoadTypeManager(context);

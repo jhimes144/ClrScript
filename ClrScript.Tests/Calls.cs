@@ -239,6 +239,23 @@ public class Calls
     }
 
     [TestMethod]
+    public void Lambda_Parameter_Assignment_Disallowed()
+    {
+        var code = @"
+                var calculate = (x, y) -> {
+                    x = 32;
+                    y = 32;
+                    return x + y;
+                };
+                
+                var value = calculate(12, 12);
+                return value;
+            ";
+
+        Assert.ThrowsException<ClrScriptCompileException>(() => ClrScriptContext<object>.Compile(code));
+    }
+
+    [TestMethod]
     public void Lambda_Basic()
     {
         var code = @"
@@ -260,6 +277,29 @@ public class Calls
 
         Assert.AreEqual(168d, obj.DynGet("value"));
         Assert.AreEqual(typeof(Func<double, double, double>), obj.DynGet("calculate").GetType());
+    }
+
+    [TestMethod]
+    public void Lambda_Basic_Nested()
+    {
+        var code = @"
+                var calculate = (x, y) -> {
+                    var getNum = () -> {
+                        return 13;
+                    };
+                    
+                    var sum = x + y;
+                    return sum + getNum();
+                };
+                
+                var value = calculate(12, 12);
+                return value;
+            ";
+
+        var context = ClrScriptContext<object>.Compile(code);
+        var result = context.Run();
+        Assert.AreEqual(37d, result);
+        Assert.IsFalse(context.DynamicOperationsEmitted);
     }
 
     [TestMethod]
@@ -387,6 +427,21 @@ public class Calls
     [TestMethod]
     public void Lambda_Basic_Var_Capture()
     {
+        var code =
+        @"
+             var val = 12;
 
+             var calculate = (x) -> {
+                     return x + val;
+                 };
+
+             return calculate(32); 
+        ";
+
+        var context = ClrScriptContext<object>.Compile(code);
+        var result = context.Run();
+
+        Assert.AreEqual(44d, result);
+        Assert.IsFalse(context.DynamicOperationsEmitted);
     }
 }

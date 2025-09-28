@@ -23,7 +23,7 @@ namespace ClrScript.Visitation.Compilation
 
         public TypeManager TypeManager { get; }
 
-        public TypeGenerator TypeGenerator { get; }
+        public OldTypeGenerator TypeGenerator { get; }
 
         public SymbolTable SymbolTable { get; }
 
@@ -47,7 +47,7 @@ namespace ClrScript.Visitation.Compilation
             SymbolTable symbolTable,
             ShapeTable shapeTable,
             TypeManager typeManager,
-            TypeGenerator typeGenerator,
+            OldTypeGenerator typeGenerator,
             TypeBuilder rootType,
             Type inType)
         {

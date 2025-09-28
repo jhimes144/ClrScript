@@ -36,7 +36,7 @@ namespace ClrScript.Visitation.Compilation
             {
                 var argShape = shapeTable.GetShape(call.Arguments[i]);
 
-                if (argShape is UnknownShape)
+                if (argShape is OldUnknownShape)
                 {
                     return false;
                 }

@@ -13,7 +13,8 @@ namespace ClrScript.Elements.Expressions
     {
         Variable,
         External,
-        LambdaArg
+        LambdaArg,
+        LambdaField
     }
 
     class MemberRootAccess : Expr
@@ -28,6 +29,8 @@ namespace ClrScript.Elements.Expressions
         /// Only applicable if access type is LambdaArg
         /// </summary>
         public int ParamIndex { get; set; }
+
+        public bool IsCapturedVariable { get; set; }
 
         public MemberRootAccess(Token name)
         {

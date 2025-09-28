@@ -193,17 +193,15 @@ namespace ClrScript.Visitation.Compilation
 
         public void VisitLambda(Lambda lambda)
         {
-            var methodShape = (MethodShape)_context.ShapeTable.GetShape(lambda);
+            var methodShape = (OldMethodShape)_context.ShapeTable.GetShape(lambda);
             var sig = methodShape.CallSignature;
 
             var env = new LambdaCapturelessMethodEnvironment(sig.GenMethodBuilder, _context);
 
             _context.SymbolTable.BeginScope(lambda);
             _context.EnterEnvironment(env);
-            _context.ShapeTable.EnterShapeScope(sig.ShapesByElement);
             lambda.Body.Accept(this);
             _context.ExitEnvironment();
-            _context.ShapeTable.EndShapeScope();
             _context.SymbolTable.EndScope();
 
             _context.CurrentEnv.Generator.Emit(OpCodes.Ldnull);
@@ -289,8 +287,6 @@ namespace ClrScript.Visitation.Compilation
             }
             else if (var.AccessType == RootMemberAccessType.LambdaArg)
             {
-                // + 1 offset is the in type being passed.
-                // TODO: Soon offset will be greater because we also need to pass type manager. Store offset in environment
                 _context.CurrentEnv.Generator.EmitLoadArg(var.ParamIndex);
             }
             else
@@ -441,7 +437,7 @@ namespace ClrScript.Visitation.Compilation
 
             call.Callee.Accept(this);
 
-            if (shape is MethodShape methodShape)
+            if (shape is OldMethodShape methodShape)
             {
                 if (methodShape.IsTypeMethod)
                 {

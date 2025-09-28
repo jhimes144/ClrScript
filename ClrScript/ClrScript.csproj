@@ -6,5 +6,6 @@
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="ClrScript.Tests" />
+		<InternalsVisibleTo Include="ClrScript.Test" />
 	</ItemGroup>
 </Project>
