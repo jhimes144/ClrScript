@@ -1,3 +1,5 @@
+NOTE: This is currently still a WIP - I have not yet advertised this project :smiley:
+
 # ClrScript
 
 ClrScript (pronounced ClearScript) is a dynamically-typed scripting language for .NET that is written similar to JavaScript. Its primary purpose is to be a scripting language that you can embed in your application, allowing users to write scripts for your app. It targets .NET 9.0 or .NET Standard 2.1.
