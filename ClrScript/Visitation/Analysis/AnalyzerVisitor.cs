@@ -244,7 +244,7 @@ namespace ClrScript.Visitation.Analysis
                     }
                 }
 
-                _shapeTable.SetShape(call, new MethodReturnShape(methodShape));
+                _shapeTable.SetShape(call, methodShape.CallSignature.Return);
             }
             else
             {

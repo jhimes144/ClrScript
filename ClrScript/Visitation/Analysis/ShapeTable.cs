@@ -86,24 +86,18 @@ namespace ClrScript.Visitation.Analysis
                 return OldUnknownShape.Instance;
             }
 
-            if (masterShape is MethodReturnShape mR1
-                && sourceShape is MethodReturnShape mR2)
-            {
-                if (!noDynDerive)
-                {
-                    return new DynDeriveShape(this, mR1, mR2);
-                }
-                else
-                {
-                    return DeriveShape(mR1.PointsTo, mR2.PointsTo, noDynDerive);
-                }
-            }
-
-            if (masterShape is DynDeriveShape dD1
-                && sourceShape is DynDeriveShape dD2)
-            {
-                return DeriveShape(dD1.MasterShape, dD2.SourceShape, noDynDerive);
-            }
+            //if (masterShape is MethodReturnShape mR1
+            //    && sourceShape is MethodReturnShape mR2)
+            //{
+            //    if (!noDynDerive)
+            //    {
+            //        return new DynDeriveShape(this, mR1, mR2);
+            //    }
+            //    else
+            //    {
+            //        return DeriveShape(mR1.PointsTo, mR2.PointsTo, noDynDerive);
+            //    }
+            //}
 
             if (masterShape is ClrScriptArrayShape a1
                 && sourceShape is ClrScriptArrayShape a2)
@@ -287,39 +281,6 @@ namespace ClrScript.Visitation.Analysis
         public OldMethodShape(Lambda declaration)
         {
             Declaration = declaration;
-        }
-    }
-
-    class MethodReturnShape : ShapeInfo
-    {
-        OldMethodShape _parent;
-
-        public override Type InferredType => _parent.CallSignature?.Return?.InferredType 
-            ?? OldUnknownShape.Instance.InferredType;
-
-        public ShapeInfo PointsTo => _parent.CallSignature?.Return;
-
-        public MethodReturnShape(OldMethodShape parent)
-        {
-            _parent = parent;
-        }
-    }
-
-    class DynDeriveShape : ShapeInfo
-    {
-        readonly ShapeTable _table;
-
-        public override Type InferredType => _table.DeriveShape(MasterShape, SourceShape, true).InferredType;
-
-        public ShapeInfo MasterShape { get; }
-
-        public ShapeInfo SourceShape { get; }
-
-        public DynDeriveShape(ShapeTable table, ShapeInfo masterShape, ShapeInfo sourceShape)
-        {
-            _table = table;
-            MasterShape = masterShape;
-            SourceShape = sourceShape;
         }
     }
 

@@ -380,13 +380,20 @@ public class Calls
                  calcDyn = 12;
              }
 
-             return calcDyn(""hello"", "" world""); 
+             return {
+                dynCalc: calcDyn(""hello"", "" world""),
+                test1
+             }; 
         ";
 
         var context = ClrScriptContext<object>.Compile(code);
         var result = context.Run();
 
-        Assert.AreEqual("hello world", result);
+        Assert.IsInstanceOfType(result, typeof(ClrScriptObject));
+        var obj = (ClrScriptObject)result;
+
+        Assert.AreEqual("hello world", obj.DynGet("dynCalc"));
+        Assert.AreEqual(24d, obj.DynGet("test1"));
         Assert.IsTrue(context.DynamicOperationsEmitted);
     }
 
